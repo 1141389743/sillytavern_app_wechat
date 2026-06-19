@@ -35,32 +35,84 @@ const API_TYPES = {
 
 /**
  * 测试连接
+ * 优先用 /v1/models 探测，如果返回 401/403/404 则回退到 /v1/chat/completions 发一条最小消息
+ * Anthropic 走专用逻辑
  */
 function testConnection(config) {
+  const baseUrl = (config.baseUrl || '').replace(/\/+$/, '');
+  const apiKey = config.apiKey || '';
+
   if (config.type === 'anthropic') {
     return _sendAnthropic(config, [{ role: 'user', content: 'hi' }], '', { max_tokens: 10 })
       .then(() => true)
       .catch(err => {
-        // 400 也算连通
         if (err.message && err.message.includes('400')) return true;
         return false;
       });
   }
 
-  return new Promise((resolve, reject) => {
-    const baseUrl = config.baseUrl.replace(/\/+$/, '');
-    const url = `${baseUrl}/v1/models`;
+  // OpenAI 兼容 / DeepSeek / 自定义
+  return new Promise((resolve) => {
+    const modelsUrl = `${baseUrl}/v1/models`;
 
     wx.request({
-      url,
+      url: modelsUrl,
       method: 'GET',
       header: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.apiKey}`
+        'Authorization': `Bearer ${apiKey}`
       },
       timeout: 15000,
       success(res) {
-        resolve(res.statusCode === 200);
+        if (res.statusCode === 200) {
+          resolve(true);
+        } else if (res.statusCode === 401 || res.statusCode === 403) {
+          // 认证失败，但服务可达
+          resolve(false);
+        } else {
+          // /v1/models 不可用，回退用 chat/completions 测试
+          _testByChatCompletion(baseUrl, apiKey, config.model).then(resolve);
+        }
+      },
+      fail() {
+        // 网络不通，再试 chat/completions
+        _testByChatCompletion(baseUrl, apiKey, config.model).then(resolve);
+      }
+    });
+  });
+}
+
+/**
+ * 通过发送最小 chat completion 请求来测试
+ * 很多 API（如 DeepSeek）/v1/models 可能不返回 200，但 chat/completions 可以
+ */
+function _testByChatCompletion(baseUrl, apiKey, model) {
+  return new Promise((resolve) => {
+    let chatUrl;
+    if (baseUrl.endsWith('/chat/completions')) {
+      chatUrl = baseUrl;
+    } else if (baseUrl.endsWith('/v1')) {
+      chatUrl = `${baseUrl}/chat/completions`;
+    } else {
+      chatUrl = `${baseUrl}/v1/chat/completions`;
+    }
+
+    wx.request({
+      url: chatUrl,
+      method: 'POST',
+      header: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      data: {
+        model: model || 'gpt-4o-mini',
+        messages: [{ role: 'user', content: 'hi' }],
+        max_tokens: 5
+      },
+      timeout: 20000,
+      success(res) {
+        // 200 = 成功, 400 = 参数错误但服务可达, 401/403 = 认证问题但服务可达
+        resolve(res.statusCode === 200 || res.statusCode === 400);
       },
       fail() {
         resolve(false);

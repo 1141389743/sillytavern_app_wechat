@@ -105,11 +105,18 @@ Page({
   // ═══════════════════════════
 
   onSelectMode(e) {
+    const isDirect = e.currentTarget.dataset.mode === 'direct';
     this.setData({
-      useDirectApi: e.currentTarget.dataset.mode === 'direct',
+      useDirectApi: isDirect,
       testResult: '',
       saveResult: ''
     });
+
+    // 立即持久化模式切换
+    if (!isDirect) {
+      // 切回服务端模式：关闭直连
+      app.saveDirectApiConfig(app.globalData.directApi, false);
+    }
   },
 
   // ═══════════════════════════
@@ -225,6 +232,7 @@ Page({
   async onTestServerConnection() {
     const url = this.data.stApiUrl;
     const key = this.data.stApiKey;
+    const model = this.data.stModel;
     const testType = this.data.currentTestApiType;
 
     if (!url && this.data.needApiUrl) {
@@ -237,40 +245,37 @@ Page({
     try {
       let ok = false;
 
-      // 对于 OpenAI 兼容类接口（OpenAI / DeepSeek / 自定义），直接测试
-      if (testType === 'openaiCompatible' || testType === 'deepseek') {
-        ok = await directApi.testConnection({
-          type: testType === 'deepseek' ? 'deepseek' : 'openaiCompatible',
-          baseUrl: url,
-          apiKey: key,
-          model: this.data.stModel
-        });
-      } else if (testType === 'anthropic') {
+      if (testType === 'anthropic') {
         ok = await directApi.testConnection({
           type: 'anthropic',
           baseUrl: url,
           apiKey: key,
-          model: this.data.stModel
+          model
         });
-      } else {
-        // 其他类型仅做简单 HTTP 探测
-        ok = await new Promise((resolve) => {
-          wx.request({
-            url: url,
-            method: 'GET',
-            timeout: 10000,
-            success: (res) => resolve(res.statusCode < 500),
-            fail: () => resolve(false)
-          });
+      } else if (this.data.needApiUrl && url) {
+        // OpenAI / DeepSeek / 自定义 全部走统一的 testConnection
+        ok = await directApi.testConnection({
+          type: 'openaiCompatible',
+          baseUrl: url,
+          apiKey: key,
+          model
         });
+      } else if (!this.data.needApiUrl) {
+        // NovelAI 等无 URL 的，仅验证 Key 非空
+        ok = !!key;
       }
 
       this.setData({
-        testResult: ok ? '连接成功，API 可用' : '连接失败，请检查地址和 Key',
+        testResult: ok
+          ? '✅ 连接成功，API 可用'
+          : '❌ 连接失败，请检查：\n1. API 地址是否正确\n2. API Key 是否有效\n3. 网络是否通畅',
         testSuccess: ok
       });
     } catch (e) {
-      this.setData({ testResult: '连接失败: ' + e.message, testSuccess: false });
+      this.setData({
+        testResult: '❌ 测试出错: ' + e.message,
+        testSuccess: false
+      });
     } finally {
       this.setData({ isTesting: false });
     }

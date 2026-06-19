@@ -112,6 +112,14 @@
           <text class="result-icon">❌</text>
           <text class="result-text">{{saveResult}}</text>
         </view>
+        <view class="result-box result-ok" wx:if="{{testResult && testSuccess}}">
+          <text class="result-icon">✅</text>
+          <text class="result-text">{{testResult}}</text>
+        </view>
+        <view class="result-box result-err" wx:if="{{testResult && !testSuccess}}">
+          <text class="result-icon">❌</text>
+          <text class="result-text" style="white-space:pre-wrap;">{{testResult}}</text>
+        </view>
       </view>
 
       <!-- 说明卡片 -->
