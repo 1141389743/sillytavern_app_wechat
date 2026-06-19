@@ -501,11 +501,21 @@ const _SECRET_KEY_MAP = {
  */
 function _saveApiKeyToSecrets(apiType, apiKey) {
   const secretKey = _SECRET_KEY_MAP[apiType];
-  if (!secretKey || !apiKey) return Promise.resolve();
+  if (!secretKey || !apiKey) {
+    console.warn('[_saveApiKeyToSecrets] 跳过:', { apiType, secretKey, hasKey: !!apiKey });
+    return Promise.resolve();
+  }
+  console.log('[_saveApiKeyToSecrets] 写入:', { key: secretKey, valueLen: apiKey.length });
   return api.post('/api/secrets/write', {
     key: secretKey,
     value: apiKey,
     label: 'SillyTavern MiniApp'
+  }).then(res => {
+    console.log('[_saveApiKeyToSecrets] 成功:', res);
+    return res;
+  }).catch(err => {
+    console.error('[_saveApiKeyToSecrets] 失败:', err.message);
+    throw err;
   });
 }
 
