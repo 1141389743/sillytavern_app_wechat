@@ -188,7 +188,14 @@ function deleteCharacter(avatarUrl) {
 function getChatList(avatarUrl) {
   const cleanUrl = stripPngSuffix(avatarUrl);
   return api.post('/api/characters/chats', { avatar_url: cleanUrl })
-    .then(data => Array.isArray(data) ? data : []);
+    .then(data => {
+      if (Array.isArray(data)) return data;
+      // 兼容不同返回格式
+      if (data && Array.isArray(data.chats)) return data.chats;
+      if (data && Array.isArray(data.data)) return data.data;
+      console.warn('getChatList: 意外的返回格式', data);
+      return [];
+    });
 }
 
 /**
@@ -204,6 +211,14 @@ function getChatMessages(avatarUrl, fileName) {
     if (Array.isArray(data)) {
       return data.map(parseSillyTavernMessage);
     }
+    // 兼容 {messages: [...]} 格式
+    if (data && Array.isArray(data.messages)) {
+      return data.messages.map(parseSillyTavernMessage);
+    }
+    if (data && Array.isArray(data.chat)) {
+      return data.chat.map(parseSillyTavernMessage);
+    }
+    console.warn('getChatMessages: 意外的返回格式', data);
     return [];
   });
 }
@@ -244,6 +259,19 @@ function deleteChat(avatarUrl, chatfile) {
 // AI 生成接口
 // ============================================================
 
+/** 清除 UI 附加字段，只保留 SillyTavern 原始角色数据 */
+function _cleanCharacterForApi(character) {
+  if (!character) return character;
+  const clean = {};
+  const skip = new Set(['_avatarUrl', '_avatarPath', '_summary', '_avatarFailed', '_index']);
+  for (const key of Object.keys(character)) {
+    if (!skip.has(key)) {
+      clean[key] = character[key];
+    }
+  }
+  return clean;
+}
+
 /**
  * 发送消息并获取 AI 回复（非流式）
  * POST /api/backends/chat-completions/generate
@@ -253,6 +281,7 @@ function sendMessage(history, userMessage, character, overrideParams) {
 
   if (history && history.length > 0) {
     for (const m of history) {
+      if (m.role === 'system') continue;
       messages.push({
         role: m.role === 'character' ? 'assistant' : m.role,
         content: m.content,
@@ -264,7 +293,7 @@ function sendMessage(history, userMessage, character, overrideParams) {
   messages.push({ role: 'user', content: userMessage });
 
   const body = { messages };
-  if (character) body.char = character;
+  if (character) body.char = _cleanCharacterForApi(character);
   if (overrideParams) Object.assign(body, overrideParams);
 
   return api.post('/api/backends/chat-completions/generate', body, { timeout: 120000 })
@@ -467,35 +496,35 @@ function saveServerApiConfig(apiType, config) {
     switch (apiType) {
       case 'openai':
         settings.openai_model = config.model || settings.openai_model;
-        if (config.apiKey) settings.oai_key = config.apiKey;
-        if (config.apiUrl) settings.openai_url = config.apiUrl;
+        if (config.apiKey !== undefined) settings.oai_key = config.apiKey;
+        if (config.apiUrl !== undefined) settings.openai_url = config.apiUrl;
         if (config.maxContext) settings.openai_max_context = config.maxContext;
         if (config.maxTokens) settings.openai_max_tokens = config.maxTokens;
         break;
 
       case 'claude':
         settings.claude_model = config.model || settings.claude_model;
-        if (config.apiKey) settings.claude_key = config.apiKey;
-        if (config.apiUrl) settings.claude_url = config.apiUrl;
+        if (config.apiKey !== undefined) settings.claude_key = config.apiKey;
+        if (config.apiUrl !== undefined) settings.claude_url = config.apiUrl;
         break;
 
       case 'kobold':
-        if (config.apiUrl) settings.kobold_url = config.apiUrl;
+        if (config.apiUrl !== undefined) settings.kobold_url = config.apiUrl;
         break;
 
       case 'novel':
         settings.novel_model = config.model || settings.novel_model;
-        if (config.apiKey) settings.novel_api_key = config.apiKey;
+        if (config.apiKey !== undefined) settings.novel_api_key = config.apiKey;
         break;
 
       case 'textgenerationwebui':
-        if (config.apiUrl) settings.textgenerationwebui_url = config.apiUrl;
+        if (config.apiUrl !== undefined) settings.textgenerationwebui_url = config.apiUrl;
         break;
 
       case 'chat-completions':
         settings.chat_completion_model = config.model || settings.chat_completion_model;
-        if (config.apiKey) settings.chat_completion_api_key = config.apiKey;
-        if (config.apiUrl) settings.chat_completion_url = config.apiUrl;
+        if (config.apiKey !== undefined) settings.chat_completion_api_key = config.apiKey;
+        if (config.apiUrl !== undefined) settings.chat_completion_url = config.apiUrl;
         break;
     }
 

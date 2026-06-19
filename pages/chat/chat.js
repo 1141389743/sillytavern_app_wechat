@@ -198,7 +198,8 @@ Page({
       }
     } catch (e) {
       // 不阻塞用户，可以开始新对话
-      console.warn('加载聊天历史失败:', e);
+      console.warn('加载聊天历史失败:', e.message || e);
+      wx.showToast({ title: '加载聊天记录失败', icon: 'none', duration: 2000 });
     }
   },
 

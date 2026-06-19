@@ -228,6 +228,14 @@ Page({
   onStModelInput(e) { this.setData({ stModel: e.detail.value, testResult: '', saveResult: '' }); },
   toggleStApiKey() { this.setData({ showStApiKey: !this.data.showStApiKey }); },
 
+  /** 输入框获焦时滚动到可见区域，防止键盘遮挡 */
+  onInputFocus(e) {
+    // 延迟等键盘弹出后滚动
+    setTimeout(() => {
+      wx.pageScrollTo({ scrollTop: e.currentTarget.offsetTop - 100, duration: 300 });
+    }, 300);
+  },
+
   /** 测试服务端 AI 连接 */
   async onTestServerConnection() {
     const url = this.data.stApiUrl;
