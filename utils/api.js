@@ -76,7 +76,10 @@ function request(url, options = {}) {
             reject(new Error(`请求失败: HTTP ${res.statusCode}`));
           }
         } else {
-          console.error(`[api] HTTP ${res.statusCode} ${url}`, typeof res.data === 'string' ? res.data.slice(0, 500) : JSON.stringify(res.data).slice(0, 500));
+          const bodyStr = typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
+          console.error(`[api] HTTP ${res.statusCode} ${url}`);
+          console.error(`[api] 响应头:`, JSON.stringify(res.header));
+          console.error(`[api] 响应体:`, bodyStr.slice(0, 1000));
           const errMsg = _extractError(res.data);
           reject(new Error(errMsg || `请求失败: HTTP ${res.statusCode}`));
         }
