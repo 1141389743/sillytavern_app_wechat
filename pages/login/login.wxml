@@ -1,0 +1,127 @@
+<!--
+  登录页面（美化版）
+  步骤1：输入服务器地址 → 步骤2：选择用户 → 步骤3：输入密码
+-->
+<view class="page">
+  <!-- ═══ 步骤1：连接服务器 ═══ -->
+  <view class="content" wx:if="{{!showUserList && !selectedUser}}">
+    <view class="logo-area">
+      <view class="logo-icon">🍺</view>
+      <view class="logo-title">酒馆AI</view>
+      <view class="logo-sub">SillyTavern 微信小程序</view>
+    </view>
+
+    <view class="form-area">
+      <view class="input-group">
+        <text class="input-label">服务器地址</text>
+        <input
+          class="input-field"
+          placeholder="http://192.168.1.100:8000"
+          value="{{serverUrl}}"
+          bindinput="onServerUrlInput"
+        />
+        <text class="input-hint" wx:if="{{urlError}}">{{urlError}}</text>
+      </view>
+
+      <view class="info-box">
+        <text class="info-icon">👥</text>
+        <text class="info-text">连接后选择账号登录</text>
+      </view>
+
+      <button
+        class="connect-btn"
+        bindtap="onConnect"
+        loading="{{isConnecting}}"
+        disabled="{{isConnecting}}"
+      >
+        {{isConnecting ? '连接中...' : '连接服务器'}}
+      </button>
+    </view>
+  </view>
+
+  <!-- ═══ 步骤2a：选择用户 ═══ -->
+  <view class="content" wx:if="{{showUserList && !selectedUser}}">
+    <view class="logo-area-small">
+      <view class="logo-icon-small">🍺</view>
+      <text style="font-size:36rpx;font-weight:700;color:#1a1a1a;">选择账号</text>
+      <text style="font-size:24rpx;color:#999;margin-top:6rpx;">{{serverUrl}}</text>
+    </view>
+
+    <view class="loading-mask" wx:if="{{isLoadingUsers}}">
+      <view class="loading-spinner"></view>
+      <text class="loading-text">获取用户列表...</text>
+    </view>
+
+    <view class="user-list" wx:if="{{!isLoadingUsers && users.length > 0}}">
+      <view
+        class="user-card"
+        wx:for="{{users}}"
+        wx:key="handle"
+        bindtap="onSelectUser"
+        data-user="{{item}}"
+      >
+        <view class="user-avatar" style="background:{{item._color}}">{{item._initial}}</view>
+        <view class="user-info">
+          <text class="user-name">{{item.name}}</text>
+          <text class="user-handle">@{{item.handle}}</text>
+        </view>
+        <view class="user-badge" wx:if="{{!item.hasPassword}}">无密码</view>
+        <text class="user-arrow">›</text>
+      </view>
+    </view>
+
+    <view class="empty-area" wx:if="{{!isLoadingUsers && users.length === 0}}" style="padding:80rpx 0;">
+      <text class="empty-icon-text">👤</text>
+      <text style="font-size:28rpx;color:#999;">没有可用用户</text>
+    </view>
+
+    <view class="bottom-actions">
+      <button class="btn-text" bindtap="onDisconnect">← 返回</button>
+      <button class="btn-tonal" bindtap="onRefreshUsers" wx:if="{{!isLoadingUsers && users.length > 0}}">刷新列表</button>
+    </view>
+  </view>
+
+  <!-- ═══ 步骤2b：输入密码 ═══ -->
+  <view class="content" wx:if="{{selectedUser}}">
+    <view class="logo-area-small">
+      <view class="logo-icon-small">🍺</view>
+    </view>
+
+    <view class="selected-user-area">
+      <view class="user-avatar-large" style="background:{{selectedUser._color}}">{{selectedUser._initial}}</view>
+      <text class="selected-user-name">{{selectedUser.name}}</text>
+      <text class="selected-user-handle">@{{selectedUser.handle}}</text>
+    </view>
+
+    <view class="form-area">
+      <view class="input-group" wx:if="{{selectedUser.hasPassword}}">
+        <text class="input-label">密码</text>
+        <input
+          class="input-field"
+          placeholder="请输入密码"
+          value="{{loginPassword}}"
+          bindinput="onPasswordInput"
+          password="{{!showPassword}}"
+          confirm-type="done"
+          bindconfirm="onLogin"
+        />
+      </view>
+
+      <button
+        class="connect-btn"
+        bindtap="onLogin"
+        loading="{{isLoggingIn}}"
+        disabled="{{isLoggingIn}}"
+      >
+        {{isLoggingIn ? '登录中...' : '登录'}}
+      </button>
+
+      <button class="btn-text" style="margin-top:12rpx;" bindtap="onBackToUsers">← 切换账号</button>
+    </view>
+  </view>
+
+  <!-- 错误提示 -->
+  <view class="error-toast" wx:if="{{errorMsg}}" bindtap="clearError">
+    ⚠️ {{errorMsg}}
+  </view>
+</view>

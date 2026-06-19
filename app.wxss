@@ -1,0 +1,38 @@
+/**
+ * 全局样式（美化版）
+ */
+
+page {
+  --primary: #6C5CE7;
+  --primary-light: rgba(108, 92, 231, 0.08);
+  --primary-container: rgba(108, 92, 231, 0.12);
+  --surface: #ffffff;
+  --surface-variant: #f2f2f7;
+  --on-surface: #1a1a1a;
+  --on-surface-secondary: #666;
+  --outline: rgba(0, 0, 0, 0.08);
+  --error: #e74c3c;
+  --success: #27ae60;
+  --warning: #e17055;
+  --tertiary: #00b894;
+
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
+  font-size: 28rpx;
+  color: var(--on-surface);
+  background-color: var(--surface-variant);
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 通用工具类 */
+.container { padding: 32rpx; }
+.mt-16 { margin-top: 16rpx; }
+.mt-24 { margin-top: 24rpx; }
+.mb-16 { margin-bottom: 16rpx; }
+
+.text-hint {
+  color: rgba(26, 26, 26, 0.4);
+  font-size: 24rpx;
+  display: block;
+  margin-bottom: 16rpx;
+}

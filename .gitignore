@@ -1,0 +1,11 @@
+# 微信小程序
+node_modules/
+miniprogram_npm/
+
+# 本地配置
+project.private.config.json
+
+# 临时文件
+*.log
+.DS_Store
+Thumbs.db

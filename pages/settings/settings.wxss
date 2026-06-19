@@ -1,0 +1,366 @@
+/* ══════════════════════════════════════
+   AI 后端配置 - 美化版样式
+   ══════════════════════════════════════ */
+
+.page {
+  min-height: 100vh;
+  background: #f2f2f7;
+}
+
+/* ── 模式切换 Tab ── */
+.mode-tabs {
+  display: flex;
+  background: #fff;
+  padding: 20rpx 24rpx;
+  gap: 16rpx;
+  border-bottom: 1rpx solid rgba(0,0,0,0.06);
+}
+
+.mode-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24rpx 16rpx;
+  border-radius: 20rpx;
+  background: #f5f5f5;
+  transition: all 0.2s;
+}
+
+.tab-active {
+  background: linear-gradient(135deg, #6C5CE7 0%, #a29bfe 100%);
+  box-shadow: 0 8rpx 24rpx rgba(108, 92, 231, 0.3);
+}
+
+.tab-icon {
+  font-size: 40rpx;
+  margin-bottom: 8rpx;
+}
+
+.tab-text {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #333;
+}
+
+.tab-active .tab-text {
+  color: #fff;
+}
+
+.tab-desc {
+  font-size: 20rpx;
+  color: #999;
+  margin-top: 4rpx;
+}
+
+.tab-active .tab-desc {
+  color: rgba(255,255,255,0.8);
+}
+
+/* ── 容器 ── */
+.container {
+  padding: 24rpx;
+  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
+}
+
+/* ── 段落标题 ── */
+.section-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20rpx;
+  margin-top: 8rpx;
+}
+
+.section-icon {
+  font-size: 32rpx;
+  margin-right: 12rpx;
+}
+
+.section-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+/* ── 后端选择网格 ── */
+.backend-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+
+.backend-card {
+  width: calc(33.333% - 12rpx);
+  background: #fff;
+  border-radius: 24rpx;
+  padding: 28rpx 12rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  border: 2rpx solid transparent;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+  transition: all 0.2s;
+}
+
+.backend-card-active {
+  border-color: #6C5CE7;
+  background: linear-gradient(180deg, rgba(108,92,231,0.08) 0%, #fff 100%);
+  box-shadow: 0 4rpx 20rpx rgba(108,92,231,0.15);
+}
+
+.backend-card-icon {
+  font-size: 48rpx;
+  margin-bottom: 12rpx;
+}
+
+.backend-card-name {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #333;
+  text-align: center;
+}
+
+.backend-card-tag {
+  font-size: 18rpx;
+  color: #6C5CE7;
+  background: rgba(108,92,231,0.1);
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  margin-top: 8rpx;
+}
+
+.backend-card-check {
+  position: absolute;
+  top: 8rpx;
+  right: 8rpx;
+  width: 36rpx;
+  height: 36rpx;
+  background: #6C5CE7;
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20rpx;
+  font-weight: 700;
+}
+
+/* ── 配置卡片 ── */
+.config-card {
+  background: #fff;
+  border-radius: 28rpx;
+  padding: 32rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.04);
+}
+
+.config-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 28rpx;
+  padding-bottom: 24rpx;
+  border-bottom: 1rpx solid rgba(0,0,0,0.06);
+}
+
+.config-icon {
+  font-size: 48rpx;
+  margin-right: 20rpx;
+}
+
+.config-title-wrap {
+  flex: 1;
+}
+
+.config-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #1a1a1a;
+  display: block;
+}
+
+.config-sub {
+  font-size: 24rpx;
+  color: #999;
+  display: block;
+  margin-top: 4rpx;
+}
+
+/* ── 表单字段 ── */
+.field-group {
+  margin-bottom: 24rpx;
+}
+
+.field-label {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: 12rpx;
+  display: block;
+}
+
+.field-input {
+  background: #f5f5f7;
+  border: 2rpx solid #e5e5ea;
+  border-radius: 16rpx;
+  padding: 22rpx 24rpx;
+  font-size: 28rpx;
+  width: 100%;
+  box-sizing: border-box;
+  color: #1a1a1a;
+}
+
+.field-input:focus {
+  border-color: #6C5CE7;
+  background: #fff;
+}
+
+.field-input-wrap {
+  position: relative;
+}
+
+.field-eye {
+  position: absolute;
+  right: 20rpx;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 28rpx;
+  z-index: 2;
+  padding: 8rpx;
+}
+
+/* ── 按钮 ── */
+.btn-save {
+  background: linear-gradient(135deg, #6C5CE7 0%, #a29bfe 100%);
+  color: #fff;
+  border: none;
+  border-radius: 20rpx;
+  padding: 26rpx 0;
+  font-size: 30rpx;
+  font-weight: 700;
+  text-align: center;
+  width: 100%;
+  margin-top: 8rpx;
+  box-shadow: 0 8rpx 24rpx rgba(108,92,231,0.25);
+}
+
+.btn-save[disabled] {
+  opacity: 0.5;
+  box-shadow: none;
+}
+
+.btn-test {
+  background: #fff;
+  color: #6C5CE7;
+  border: 2rpx solid #6C5CE7;
+  border-radius: 20rpx;
+  padding: 24rpx 0;
+  font-size: 28rpx;
+  font-weight: 600;
+  flex: 1;
+}
+
+.btn-test[disabled] {
+  opacity: 0.5;
+}
+
+.btn-row {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 8rpx;
+}
+
+.btn-row .btn-save {
+  flex: 1;
+}
+
+/* ── 结果提示 ── */
+.result-box {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 24rpx;
+  border-radius: 16rpx;
+  margin-top: 20rpx;
+}
+
+.result-ok {
+  background: rgba(39,174,96,0.08);
+}
+
+.result-err {
+  background: rgba(231,76,60,0.08);
+}
+
+.result-icon {
+  font-size: 28rpx;
+  margin-right: 12rpx;
+}
+
+.result-text {
+  font-size: 26rpx;
+  color: #333;
+  flex: 1;
+}
+
+/* ── 直连模式：类型选择 ── */
+.type-scroll {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-bottom: 20rpx;
+}
+
+.type-chip {
+  padding: 16rpx 28rpx;
+  border-radius: 40rpx;
+  background: #fff;
+  font-size: 26rpx;
+  font-weight: 500;
+  color: #666;
+  border: 2rpx solid #e5e5ea;
+  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.03);
+}
+
+.type-chip-active {
+  background: linear-gradient(135deg, #6C5CE7 0%, #a29bfe 100%);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 4rpx 16rpx rgba(108,92,231,0.3);
+}
+
+/* ── 提示卡片 ── */
+.tip-card {
+  display: flex;
+  align-items: flex-start;
+  background: rgba(0,184,148,0.06);
+  border: 1rpx solid rgba(0,184,148,0.15);
+  border-radius: 20rpx;
+  padding: 24rpx;
+  margin-top: 8rpx;
+}
+
+.tip-icon {
+  font-size: 32rpx;
+  margin-right: 16rpx;
+  flex-shrink: 0;
+}
+
+.tip-content {
+  flex: 1;
+}
+
+.tip-title {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #00b894;
+  display: block;
+  margin-bottom: 8rpx;
+}
+
+.tip-text {
+  font-size: 24rpx;
+  color: #666;
+  line-height: 1.6;
+  display: block;
+}

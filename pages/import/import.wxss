@@ -1,0 +1,144 @@
+/* 导入页面样式 */
+
+.page {
+  min-height: 100vh;
+  background: var(--surface-variant);
+}
+
+.container {
+  padding: 40rpx 32rpx;
+  padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
+}
+
+.page-title {
+  font-size: 44rpx;
+  font-weight: 700;
+  color: var(--on-surface);
+  display: block;
+  margin-bottom: 12rpx;
+}
+
+.page-desc {
+  font-size: 28rpx;
+  color: var(--on-surface-secondary);
+  display: block;
+  margin-bottom: 48rpx;
+}
+
+/* 导入卡片 */
+.import-card {
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 28rpx;
+  padding: 32rpx;
+  margin-bottom: 40rpx;
+}
+
+.import-icon-wrap {
+  width: 104rpx;
+  height: 104rpx;
+  background: var(--primary-light);
+  border-radius: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 28rpx;
+  flex-shrink: 0;
+}
+
+.import-icon {
+  font-size: 48rpx;
+}
+
+.import-text {
+  flex: 1;
+}
+
+.import-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--on-surface);
+  display: block;
+  margin-bottom: 6rpx;
+}
+
+.import-sub {
+  font-size: 24rpx;
+  color: var(--on-surface-secondary);
+  display: block;
+}
+
+.import-arrow {
+  font-size: 36rpx;
+  color: var(--outline);
+}
+
+/* URL 导入 */
+.section-label {
+  font-size: 28rpx;
+  color: var(--on-surface-secondary);
+  display: block;
+  margin-bottom: 20rpx;
+}
+
+.url-import-area {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.input-field {
+  background: var(--surface);
+  border: 2rpx solid var(--outline);
+  border-radius: 24rpx;
+  padding: 24rpx 28rpx;
+  font-size: 28rpx;
+}
+
+/* 加载 */
+.loading-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48rpx 0;
+}
+
+.loading-spinner {
+  width: 56rpx;
+  height: 56rpx;
+  border: 4rpx solid var(--outline);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 16rpx;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-text {
+  font-size: 28rpx;
+  color: var(--on-surface-secondary);
+}
+
+/* 状态消息 */
+.status-box {
+  margin-top: 32rpx;
+  padding: 24rpx;
+  border-radius: 20rpx;
+  font-size: 28rpx;
+}
+
+.status-ok {
+  background: rgba(39, 174, 96, 0.1);
+  color: var(--success);
+  border: 1rpx solid rgba(39, 174, 96, 0.2);
+}
+
+.status-err {
+  background: rgba(231, 76, 60, 0.1);
+  color: var(--error);
+  border: 1rpx solid rgba(231, 76, 60, 0.2);
+}

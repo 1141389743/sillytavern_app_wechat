@@ -1,0 +1,134 @@
+<!--
+  聊天页面 - 对应 Flutter chat_screen.dart
+-->
+<view class="page">
+  <!-- 顶部角色信息 -->
+  <view class="chat-header">
+    <view class="header-back" bindtap="onBack">←</view>
+    <view class="header-avatar" wx:if="{{characterAvatarUrl}}">
+      <image src="{{characterAvatarUrl}}" mode="aspectFill" class="header-avatar-img" />
+    </view>
+    <view class="header-avatar header-avatar-placeholder" wx:else>
+      {{characterName[0] || '?'}}
+    </view>
+    <view class="header-info">
+      <text class="header-name">{{characterName}}</text>
+      <text class="header-status {{isSending ? 'status-sending' : ''}}">
+        {{isSending ? '正在输入...' : (useDirectApi ? '直连: ' + directApiTypeName : '酒馆后端')}}
+      </text>
+    </view>
+    <view class="header-action" bindtap="onShowCharacterInfo">ℹ️</view>
+  </view>
+
+  <!-- 开场白横幅 -->
+  <view class="greeting-banner" wx:if="{{greeting && messages.length === 0}}">
+    <view class="greeting-header">
+      <text class="greeting-star">✨</text>
+      <text class="greeting-name">{{characterName}}</text>
+    </view>
+    <text class="greeting-text">{{greeting}}</text>
+  </view>
+
+  <!-- 消息列表 -->
+  <scroll-view
+    class="message-list"
+    scroll-y
+    scroll-into-view="{{scrollToId}}"
+    scroll-with-animation
+    enhanced
+    show-scrollbar="{{false}}"
+  >
+    <!-- 空状态 -->
+    <view class="empty-chat" wx:if="{{messages.length === 0}}">
+      <text class="empty-chat-icon">💬</text>
+      <text class="empty-chat-text">{{greeting || '发送一条消息开始对话吧'}}</text>
+    </view>
+
+    <!-- 消息气泡 -->
+    <view
+      wx:for="{{messages}}"
+      wx:key="id"
+      id="msg-{{item.id}}"
+      class="msg-row {{item.role === 'user' ? 'msg-row-user' : 'msg-row-assistant'}}"
+    >
+      <!-- 角色头像（助手消息） -->
+      <view class="msg-avatar" wx:if="{{item.role === 'assistant' && item._showAvatar}}">
+        <text>{{characterName[0]}}</text>
+      </view>
+      <view class="msg-avatar-space" wx:if="{{item.role === 'assistant' && !item._showAvatar}}"></view>
+
+      <view class="msg-bubble-wrap {{item.role === 'user' ? 'bubble-user' : 'bubble-assistant'}}">
+        <!-- 角色名 -->
+        <text class="msg-name" wx:if="{{item.role === 'assistant'}}">{{characterName}}</text>
+        <!-- 消息内容 -->
+        <view class="msg-content">
+          <text selectable>{{item.content}}</text>
+        </view>
+      </view>
+
+      <!-- 用户头像 -->
+      <view class="msg-avatar msg-avatar-user" wx:if="{{item.role === 'user'}}">
+        <text>我</text>
+      </view>
+
+      <!-- 时间 -->
+      <text class="msg-time {{item.role === 'user' ? 'time-right' : 'time-left'}}">
+        {{item._time}}
+      </text>
+    </view>
+
+    <!-- 发送中指示 -->
+    <view class="typing-indicator" wx:if="{{isSending}}">
+      <view class="typing-avatar">
+        <text>{{characterName[0]}}</text>
+      </view>
+      <view class="typing-bubble">
+        <view class="typing-dots">
+          <view class="dot dot1"></view>
+          <view class="dot dot2"></view>
+          <view class="dot dot3"></view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部占位 -->
+    <view id="msg-bottom" style="height:20rpx;"></view>
+  </scroll-view>
+
+  <!-- 输入区域 -->
+  <view class="input-area">
+    <view class="input-wrap">
+      <textarea
+        class="msg-input"
+        placeholder="输入消息..."
+        value="{{inputText}}"
+        bindinput="onInput"
+        bindconfirm="onSend"
+        confirm-type="send"
+        auto-height
+        maxlength="4000"
+        show-confirm-bar="{{false}}"
+        adjust-position="{{true}}"
+        cursor-spacing="20"
+      />
+    </view>
+    <view
+      class="send-btn {{canSend ? 'send-btn-active' : ''}}"
+      bindtap="onSend"
+    >
+      <text>{{isSending ? '⏳' : '📤'}}</text>
+    </view>
+  </view>
+
+  <!-- 角色信息弹窗 -->
+  <view class="settings-mask" wx:if="{{showCharInfo}}" bindtap="hideCharInfo">
+    <view class="info-sheet" catchtap="">
+      <view class="sheet-handle"></view>
+      <text class="info-title">{{characterName}}</text>
+      <text class="info-desc" wx:if="{{characterDescription}}">{{characterDescription}}</text>
+      <text class="info-field" wx:if="{{characterPersonality}}">性格: {{characterPersonality}}</text>
+      <text class="info-field" wx:if="{{characterScenario}}">场景: {{characterScenario}}</text>
+      <button class="btn-primary mt-24" bindtap="hideCharInfo">知道了</button>
+    </view>
+  </view>
+</view>

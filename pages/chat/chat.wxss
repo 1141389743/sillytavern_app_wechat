@@ -1,0 +1,390 @@
+/* 聊天页面样式 */
+
+.page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f8f8f8;
+}
+
+/* 顶部栏 */
+.chat-header {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 24rpx;
+  background: var(--surface);
+  border-bottom: 1rpx solid var(--outline);
+}
+
+.header-back {
+  font-size: 40rpx;
+  color: var(--primary);
+  padding: 8rpx 16rpx 8rpx 0;
+}
+
+.header-avatar {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 16rpx;
+  overflow: hidden;
+  margin-right: 16rpx;
+  flex-shrink: 0;
+}
+
+.header-avatar-img {
+  width: 64rpx;
+  height: 64rpx;
+}
+
+.header-avatar-placeholder {
+  background: var(--primary-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.header-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.header-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--on-surface);
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-status {
+  font-size: 22rpx;
+  color: var(--success);
+  display: block;
+}
+
+.status-sending {
+  color: var(--primary);
+}
+
+.header-action {
+  font-size: 32rpx;
+  padding: 8rpx 8rpx 8rpx 16rpx;
+}
+
+/* 开场白横幅 */
+.greeting-banner {
+  margin: 16rpx 24rpx 0;
+  padding: 24rpx;
+  background: rgba(108, 92, 231, 0.08);
+  border-radius: 24rpx;
+  border: 1rpx solid rgba(108, 92, 231, 0.15);
+}
+
+.greeting-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12rpx;
+}
+
+.greeting-star {
+  font-size: 24rpx;
+  margin-right: 8rpx;
+}
+
+.greeting-name {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.greeting-text {
+  font-size: 26rpx;
+  color: var(--on-surface-secondary);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 消息列表 */
+.message-list {
+  flex: 1;
+  padding: 16rpx 0;
+}
+
+.empty-chat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 200rpx 80rpx;
+}
+
+.empty-chat-icon {
+  font-size: 96rpx;
+  opacity: 0.2;
+  margin-bottom: 20rpx;
+}
+
+.empty-chat-text {
+  font-size: 28rpx;
+  color: var(--on-surface-secondary);
+  text-align: center;
+}
+
+/* 消息行 */
+.msg-row {
+  display: flex;
+  align-items: flex-start;
+  padding: 8rpx 24rpx;
+  flex-wrap: wrap;
+}
+
+.msg-row-user {
+  justify-content: flex-end;
+}
+
+.msg-row-assistant {
+  justify-content: flex-start;
+}
+
+/* 头像 */
+.msg-avatar {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: var(--primary-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  font-weight: 700;
+  color: var(--primary);
+  flex-shrink: 0;
+  margin-right: 12rpx;
+}
+
+.msg-avatar-space {
+  width: 56rpx;
+  margin-right: 12rpx;
+  flex-shrink: 0;
+}
+
+.msg-avatar-user {
+  background: var(--primary);
+  color: #fff;
+  margin-left: 12rpx;
+  margin-right: 0;
+}
+
+/* 气泡 */
+.msg-bubble-wrap {
+  max-width: 70%;
+  padding: 16rpx 24rpx;
+  border-radius: 32rpx;
+}
+
+.bubble-user {
+  background: var(--primary);
+  border-bottom-right-radius: 8rpx;
+}
+
+.bubble-assistant {
+  background: rgba(0, 0, 0, 0.06);
+  border-bottom-left-radius: 8rpx;
+}
+
+.msg-name {
+  font-size: 22rpx;
+  font-weight: 600;
+  color: var(--primary);
+  display: block;
+  margin-bottom: 6rpx;
+}
+
+.msg-content {
+  font-size: 30rpx;
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+.bubble-user .msg-content {
+  color: #fff;
+}
+
+.bubble-assistant .msg-content {
+  color: var(--on-surface);
+}
+
+/* 时间 */
+.msg-time {
+  font-size: 20rpx;
+  color: rgba(26, 26, 26, 0.3);
+  padding: 4rpx 12rpx;
+  width: 100%;
+}
+
+.time-left {
+  text-align: left;
+  padding-left: 68rpx;
+}
+
+.time-right {
+  text-align: right;
+  padding-right: 68rpx;
+}
+
+/* 打字指示器 */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  padding: 8rpx 24rpx;
+}
+
+.typing-avatar {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: var(--primary-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  font-weight: 700;
+  color: var(--primary);
+  margin-right: 12rpx;
+}
+
+.typing-bubble {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 20rpx 28rpx;
+  border-radius: 32rpx;
+  border-bottom-left-radius: 8rpx;
+}
+
+.typing-dots {
+  display: flex;
+  gap: 12rpx;
+}
+
+.dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.3);
+  animation: bounce 1.4s infinite ease-in-out;
+}
+
+.dot1 { animation-delay: 0s; }
+.dot2 { animation-delay: 0.2s; }
+.dot3 { animation-delay: 0.4s; }
+
+@keyframes bounce {
+  0%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-8rpx); }
+}
+
+/* 输入区域 */
+.input-area {
+  display: flex;
+  align-items: flex-end;
+  padding: 16rpx 24rpx;
+  padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
+  background: var(--surface);
+  border-top: 1rpx solid var(--outline);
+}
+
+.input-wrap {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 32rpx;
+  padding: 16rpx 28rpx;
+  margin-right: 12rpx;
+}
+
+.msg-input {
+  width: 100%;
+  font-size: 30rpx;
+  line-height: 1.4;
+  max-height: 200rpx;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.send-btn {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36rpx;
+  background: rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
+}
+
+.send-btn-active {
+  background: var(--primary-light);
+}
+
+/* 角色信息弹窗 */
+.settings-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.info-sheet {
+  width: 85%;
+  background: var(--surface);
+  border-radius: 32rpx;
+  padding: 40rpx;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.sheet-handle {
+  width: 80rpx;
+  height: 8rpx;
+  background: #ddd;
+  border-radius: 4rpx;
+  margin: 0 auto 24rpx;
+}
+
+.info-title {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: var(--on-surface);
+  display: block;
+  margin-bottom: 16rpx;
+}
+
+.info-desc {
+  font-size: 26rpx;
+  color: var(--on-surface-secondary);
+  line-height: 1.5;
+  display: block;
+  margin-bottom: 16rpx;
+}
+
+.info-field {
+  font-size: 26rpx;
+  color: var(--on-surface-secondary);
+  line-height: 1.5;
+  display: block;
+  margin-bottom: 12rpx;
+}

@@ -1,0 +1,145 @@
+<!--
+  创建/编辑角色页面 - 对应 Flutter create_character_screen.dart
+-->
+<view class="page">
+  <view class="container">
+    <!-- 头像选择 -->
+    <view class="avatar-area" bindtap="onPickAvatar">
+      <image
+        wx:if="{{avatarPath}}"
+        src="{{avatarPath}}"
+        mode="aspectFill"
+        class="avatar-preview"
+      />
+      <view class="avatar-placeholder" wx:else>
+        <text class="avatar-icon">📷</text>
+        <text class="avatar-hint">点击选择头像</text>
+      </view>
+    </view>
+
+    <!-- 角色名称 -->
+    <view class="input-group">
+      <text class="input-label">角色名称 *</text>
+      <input
+        class="input-field"
+        placeholder="输入角色名称"
+        value="{{charName}}"
+        bindinput="onNameInput"
+      />
+    </view>
+
+    <!-- 描述 -->
+    <view class="input-group">
+      <text class="input-label">描述</text>
+      <textarea
+        class="input-field textarea"
+        placeholder="角色描述"
+        value="{{description}}"
+        bindinput="onDescInput"
+        auto-height
+        maxlength="2000"
+      />
+    </view>
+
+    <!-- 开场白 -->
+    <view class="input-group">
+      <text class="input-label">开场白</text>
+      <textarea
+        class="input-field textarea"
+        placeholder="角色的开场白"
+        value="{{greeting}}"
+        bindinput="onGreetingInput"
+        auto-height
+        maxlength="2000"
+      />
+    </view>
+
+    <!-- 第一条消息 -->
+    <view class="input-group">
+      <text class="input-label">第一条消息</text>
+      <textarea
+        class="input-field textarea"
+        placeholder="角色的第一条消息"
+        value="{{firstMes}}"
+        bindinput="onFirstMesInput"
+        auto-height
+        maxlength="2000"
+      />
+    </view>
+
+    <!-- 性格 -->
+    <view class="input-group">
+      <text class="input-label">性格</text>
+      <textarea
+        class="input-field textarea"
+        placeholder="角色性格描述"
+        value="{{personality}}"
+        bindinput="onPersonalityInput"
+        auto-height
+        maxlength="2000"
+      />
+    </view>
+
+    <!-- 场景 -->
+    <view class="input-group">
+      <text class="input-label">场景</text>
+      <textarea
+        class="input-field textarea"
+        placeholder="角色所处的场景"
+        value="{{scenario}}"
+        bindinput="onScenarioInput"
+        auto-height
+        maxlength="2000"
+      />
+    </view>
+
+    <!-- 对话示例 -->
+    <view class="input-group">
+      <text class="input-label">对话示例</text>
+      <textarea
+        class="input-field textarea textarea-tall"
+        placeholder="对话示例"
+        value="{{mesExample}}"
+        bindinput="onMesExampleInput"
+        auto-height
+        maxlength="4000"
+      />
+    </view>
+
+    <!-- 系统提示词 -->
+    <view class="input-group">
+      <text class="input-label">系统提示词</text>
+      <textarea
+        class="input-field textarea"
+        placeholder="System Prompt"
+        value="{{systemPrompt}}"
+        bindinput="onSystemPromptInput"
+        auto-height
+        maxlength="4000"
+      />
+    </view>
+
+    <!-- 创建者备注 -->
+    <view class="input-group">
+      <text class="input-label">创建者备注</text>
+      <textarea
+        class="input-field textarea"
+        placeholder="备注信息"
+        value="{{creatorNotes}}"
+        bindinput="onCreatorNotesInput"
+        auto-height
+        maxlength="1000"
+      />
+    </view>
+
+    <!-- 保存按钮 -->
+    <button
+      class="btn-primary save-btn"
+      bindtap="onSave"
+      loading="{{isLoading}}"
+      disabled="{{isLoading}}"
+    >
+      {{isLoading ? '保存中...' : '保存'}}
+    </button>
+  </view>
+</view>

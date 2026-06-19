@@ -1,0 +1,62 @@
+<!--
+  导入角色页面 - 对应 Flutter import_screen.dart
+  注意：微信小程序不支持文件系统访问，使用 wx.chooseMessageFile 选择文件
+-->
+<view class="page">
+  <view class="container">
+    <!-- 标题 -->
+    <text class="page-title">导入角色卡片</text>
+    <text class="page-desc">支持 PNG 角色卡 (.png) 和 JSON 格式的角色卡片</text>
+
+    <!-- 从聊天记录/文件选择导入 -->
+    <view class="import-card" bindtap="onPickFile">
+      <view class="import-icon-wrap">
+        <text class="import-icon">📁</text>
+      </view>
+      <view class="import-text">
+        <text class="import-title">从文件导入</text>
+        <text class="import-sub">选择 .png 或 .json 角色卡文件</text>
+      </view>
+      <text class="import-arrow">›</text>
+    </view>
+
+    <!-- 从链接导入 -->
+    <text class="section-label">或从网页链接导入</text>
+    <view class="url-import-area">
+      <input
+        class="input-field"
+        placeholder="粘贴角色卡的下载链接..."
+        value="{{importUrl}}"
+        bindinput="onUrlInput"
+      />
+      <button
+        class="btn-primary"
+        bindtap="onImportFromUrl"
+        loading="{{isImporting}}"
+        disabled="{{isImporting}}"
+      >
+        从链接导入
+      </button>
+    </view>
+
+    <!-- 加载中 -->
+    <view class="loading-area" wx:if="{{isImporting}}">
+      <view class="loading-spinner"></view>
+      <text class="loading-text">正在处理...</text>
+    </view>
+
+    <!-- 状态消息 -->
+    <view class="status-box {{isSuccess ? 'status-ok' : 'status-err'}}" wx:if="{{statusMessage && !isImporting}}">
+      <text>{{statusMessage}}</text>
+    </view>
+
+    <!-- 成功后返回 -->
+    <button
+      class="btn-outline mt-24"
+      wx:if="{{isSuccess}}"
+      bindtap="onGoBack"
+    >
+      ← 返回角色列表
+    </button>
+  </view>
+</view>

@@ -1,0 +1,217 @@
+<!--
+  AI 后端配置页面（美化版）
+  服务端模式：配置保存到 SillyTavern，聊天记录自动同步
+  直连模式：小程序独立调用 AI
+-->
+<view class="page">
+  <!-- 顶部模式切换 Tab -->
+  <view class="mode-tabs">
+    <view class="mode-tab {{!useDirectApi ? 'tab-active' : ''}}" bindtap="onSelectMode" data-mode="st">
+      <text class="tab-icon">📡</text>
+      <text class="tab-text">服务端</text>
+      <text class="tab-desc">配置同步到服务器</text>
+    </view>
+    <view class="mode-tab {{useDirectApi ? 'tab-active' : ''}}" bindtap="onSelectMode" data-mode="direct">
+      <text class="tab-icon">🔌</text>
+      <text class="tab-text">直连</text>
+      <text class="tab-desc">小程序独立调用</text>
+    </view>
+  </view>
+
+  <view class="container">
+    <!-- ═══════════════════════════════════ -->
+    <!-- SillyTavern 服务端模式              -->
+    <!-- ═══════════════════════════════════ -->
+    <view wx:if="{{!useDirectApi}}">
+      <!-- 后端类型选择卡片 -->
+      <view class="section-header">
+        <text class="section-icon">🤖</text>
+        <text class="section-title">选择 AI 后端</text>
+      </view>
+
+      <view class="backend-grid">
+        <view
+          class="backend-card {{item.active ? 'backend-card-active' : ''}}"
+          wx:for="{{backends}}"
+          wx:key="id"
+          bindtap="onSelectBackend"
+          data-id="{{item.id}}"
+        >
+          <view class="backend-card-icon">{{item.icon}}</view>
+          <view class="backend-card-name">{{item.name}}</view>
+          <view class="backend-card-tag" wx:if="{{item.tag}}">{{item.tag}}</view>
+          <view class="backend-card-check" wx:if="{{item.active}}">✓</view>
+        </view>
+      </view>
+
+      <!-- API 配置表单 -->
+      <view class="config-card" wx:if="{{showApiForm}}">
+        <view class="config-header">
+          <text class="config-icon">{{currentBackendIcon}}</text>
+          <view class="config-title-wrap">
+            <text class="config-title">{{currentBackendName}}</text>
+            <text class="config-sub">填写后保存到服务端</text>
+          </view>
+        </view>
+
+        <!-- API Key -->
+        <view class="field-group" wx:if="{{needApiKey}}">
+          <text class="field-label">🔑 API Key</text>
+          <view class="field-input-wrap">
+            <input
+              class="field-input"
+              placeholder="{{apiKeyPlaceholder}}"
+              value="{{stApiKey}}"
+              bindinput="onStApiKeyInput"
+              password="{{!showStApiKey}}"
+            />
+            <view class="field-eye" bindtap="toggleStApiKey">
+              <text>{{showStApiKey ? '🙈' : '👁️'}}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- API URL -->
+        <view class="field-group" wx:if="{{needApiUrl}}">
+          <text class="field-label">🌐 API 地址</text>
+          <input
+            class="field-input"
+            placeholder="{{apiUrlPlaceholder}}"
+            value="{{stApiUrl}}"
+            bindinput="onStApiUrlInput"
+          />
+        </view>
+
+        <!-- 模型名 -->
+        <view class="field-group" wx:if="{{needModel}}">
+          <text class="field-label">🧠 模型</text>
+          <input
+            class="field-input"
+            placeholder="{{modelPlaceholder}}"
+            value="{{stModel}}"
+            bindinput="onStModelInput"
+          />
+        </view>
+
+        <!-- 保存按钮 -->
+        <button class="btn-save" bindtap="onSaveToServer" loading="{{isSaving}}" disabled="{{isSaving}}">
+          <text wx:if="{{!isSaving}}">💾 保存到服务端</text>
+          <text wx:if="{{isSaving}}">保存中...</text>
+        </button>
+
+        <!-- 结果提示 -->
+        <view class="result-box result-ok" wx:if="{{saveResult && saveSuccess}}">
+          <text class="result-icon">✅</text>
+          <text class="result-text">{{saveResult}}</text>
+        </view>
+        <view class="result-box result-err" wx:if="{{saveResult && !saveSuccess}}">
+          <text class="result-icon">❌</text>
+          <text class="result-text">{{saveResult}}</text>
+        </view>
+      </view>
+
+      <!-- 说明卡片 -->
+      <view class="tip-card">
+        <text class="tip-icon">💡</text>
+        <view class="tip-content">
+          <text class="tip-title">服务端模式说明</text>
+          <text class="tip-text">配置保存到 SillyTavern 后，网页端和小程序共享同一配置。所有聊天记录自动保存在服务端。</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- ═══════════════════════════════════ -->
+    <!-- 直连 AI API 模式                    -->
+    <!-- ═══════════════════════════════════ -->
+    <view wx:if="{{useDirectApi}}">
+      <view class="section-header">
+        <text class="section-icon">🔌</text>
+        <text class="section-title">直连 AI 配置</text>
+      </view>
+
+      <!-- API 类型选择 -->
+      <view class="type-scroll">
+        <view
+          class="type-chip {{index === apiTypeIndex ? 'type-chip-active' : ''}}"
+          wx:for="{{apiTypeNames}}"
+          wx:key="index"
+          bindtap="onApiTypeChange"
+          data-index="{{index}}"
+        >
+          {{item}}
+        </view>
+      </view>
+
+      <!-- 配置表单 -->
+      <view class="config-card">
+        <!-- API 地址 -->
+        <view class="field-group">
+          <text class="field-label">🌐 API 地址</text>
+          <input
+            class="field-input"
+            placeholder="例如: https://api.openai.com"
+            value="{{apiBaseUrl}}"
+            bindinput="onApiBaseUrlInput"
+          />
+        </view>
+
+        <!-- API Key -->
+        <view class="field-group">
+          <text class="field-label">🔑 API Key</text>
+          <view class="field-input-wrap">
+            <input
+              class="field-input"
+              placeholder="sk-..."
+              value="{{apiKey}}"
+              bindinput="onApiKeyInput"
+              password="{{!showApiKey}}"
+            />
+            <view class="field-eye" bindtap="toggleApiKey">
+              <text>{{showApiKey ? '🙈' : '👁️'}}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 模型 -->
+        <view class="field-group">
+          <text class="field-label">🧠 模型</text>
+          <input
+            class="field-input"
+            placeholder="例如: gpt-4o-mini / deepseek-chat"
+            value="{{modelName}}"
+            bindinput="onModelInput"
+          />
+        </view>
+
+        <!-- 测试 + 保存 -->
+        <view class="btn-row">
+          <button class="btn-test" bindtap="onTestConnection" loading="{{isTesting}}" disabled="{{isTesting}}">
+            {{isTesting ? '测试中...' : '🔗 测试'}}
+          </button>
+          <button class="btn-save" bindtap="onSaveLocal">
+            💾 保存
+          </button>
+        </view>
+
+        <!-- 测试结果 -->
+        <view class="result-box result-ok" wx:if="{{testResult && testSuccess}}">
+          <text class="result-icon">✅</text>
+          <text class="result-text">{{testResult}}</text>
+        </view>
+        <view class="result-box result-err" wx:if="{{testResult && !testSuccess}}">
+          <text class="result-icon">❌</text>
+          <text class="result-text">{{testResult}}</text>
+        </view>
+      </view>
+
+      <!-- 说明 -->
+      <view class="tip-card">
+        <text class="tip-icon">💡</text>
+        <view class="tip-content">
+          <text class="tip-title">直连模式说明</text>
+          <text class="tip-text">小程序直接调用 AI API，不经过 SillyTavern。对话记录不会同步到服务端，仅保存在小程序内。</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>
