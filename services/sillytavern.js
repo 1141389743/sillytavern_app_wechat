@@ -293,11 +293,16 @@ function sendMessage(history, userMessage, character, overrideParams) {
   messages.push({ role: 'user', content: userMessage });
 
   const body = { messages };
-  if (character) body.char = _cleanCharacterForApi(character);
+  // char 字段：SillyTavern 服务端已加载角色，不发送以避免格式问题
+  // 如果需要发送，取消下面注释
+  // if (character) body.char = _cleanCharacterForApi(character);
   if (overrideParams) Object.assign(body, overrideParams);
+
+  console.log('[sendMessage] 请求体:', JSON.stringify(body).slice(0, 1000));
 
   return api.post('/api/backends/chat-completions/generate', body, { timeout: 120000 })
     .then(data => {
+      console.log('[sendMessage] 响应:', JSON.stringify(data).slice(0, 500));
       // 解析 OpenAI 兼容格式响应
       if (data.choices && data.choices.length > 0) {
         const choice = data.choices[0];
@@ -308,6 +313,10 @@ function sendMessage(history, userMessage, character, overrideParams) {
       }
       if (data.message) return data.message;
       return '（无回复）';
+    })
+    .catch(err => {
+      console.error('[sendMessage] 错误:', err.message);
+      throw err;
     });
 }
 

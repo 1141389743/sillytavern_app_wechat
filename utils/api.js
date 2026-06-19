@@ -76,6 +76,7 @@ function request(url, options = {}) {
             reject(new Error(`请求失败: HTTP ${res.statusCode}`));
           }
         } else {
+          console.error(`[api] HTTP ${res.statusCode} ${url}`, typeof res.data === 'string' ? res.data.slice(0, 500) : JSON.stringify(res.data).slice(0, 500));
           const errMsg = _extractError(res.data);
           reject(new Error(errMsg || `请求失败: HTTP ${res.statusCode}`));
         }
