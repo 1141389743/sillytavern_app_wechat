@@ -528,6 +528,7 @@ function _saveApiKeyToSecrets(apiType, apiKey) {
  * @param {object} config - { apiKey, apiUrl, model, ... }
  */
 function saveServerApiConfig(apiType, config) {
+  console.log('[saveServerApiConfig] 入参:', { apiType, hasKey: !!config.apiKey, keyLen: (config.apiKey || '').length, model: config.model, url: config.apiUrl });
   return getServerSettings().then(settings => {
     settings.main_api = apiType;
 

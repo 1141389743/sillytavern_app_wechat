@@ -241,6 +241,7 @@ Page({
     const url = this.data.stApiUrl;
     const key = this.data.stApiKey;
     const model = this.data.stModel;
+    console.log('[onTestServerConnection] 开始:', { url, hasKey: !!key, keyLen: (key || '').length, model, backend: this.data.currentBackendId });
 
     if (!url && this.data.needApiUrl) {
       wx.showToast({ title: '请输入 API 地址', icon: 'none' });
