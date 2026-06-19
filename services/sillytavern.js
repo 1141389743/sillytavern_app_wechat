@@ -293,9 +293,7 @@ function sendMessage(history, userMessage, character, overrideParams) {
   messages.push({ role: 'user', content: userMessage });
 
   const body = { messages };
-  // char 字段：SillyTavern 服务端已加载角色，不发送以避免格式问题
-  // 如果需要发送，取消下面注释
-  // if (character) body.char = _cleanCharacterForApi(character);
+  if (character) body.char = _cleanCharacterForApi(character);
   if (overrideParams) Object.assign(body, overrideParams);
 
   console.log('[sendMessage] 请求体:', JSON.stringify(body).slice(0, 1000));
@@ -489,23 +487,43 @@ function getServerSettings() {
   });
 }
 
+/** API 类型 → SillyTavern secrets key 映射 */
+const _SECRET_KEY_MAP = {
+  openai: 'api_key_openai',
+  claude: 'api_key_claude',
+  novel: 'api_key_novel',
+  'chat-completions': 'api_key_custom',
+};
+
+/**
+ * 保存 API Key 到 SillyTavern secrets.json
+ * generate 端点通过 readSecret() 读取 key，必须存到 secrets 而非 settings
+ */
+function _saveApiKeyToSecrets(apiType, apiKey) {
+  const secretKey = _SECRET_KEY_MAP[apiType];
+  if (!secretKey || !apiKey) return Promise.resolve();
+  return api.post('/api/secrets/write', {
+    key: secretKey,
+    value: apiKey,
+    label: 'SillyTavern MiniApp'
+  });
+}
+
 /**
  * 保存 AI API 配置到 SillyTavern 服务端
- * 修改 main_api + 对应的 api key / model / url 等字段
+ * 1. settings 存 main_api / model / url
+ * 2. secrets  存 api key（generate 端点从这里读）
  *
  * @param {string} apiType - 'openai' | 'claude' | 'kobold' | 'novel' | 'textgenerationwebui' | 'chat-completions'
  * @param {object} config - { apiKey, apiUrl, model, ... }
  */
 function saveServerApiConfig(apiType, config) {
   return getServerSettings().then(settings => {
-    // 切换主 API 类型
     settings.main_api = apiType;
 
-    // 根据不同类型设置对应字段
     switch (apiType) {
       case 'openai':
         settings.openai_model = config.model || settings.openai_model;
-        if (config.apiKey !== undefined) settings.oai_key = config.apiKey;
         if (config.apiUrl !== undefined) settings.openai_url = config.apiUrl;
         if (config.maxContext) settings.openai_max_context = config.maxContext;
         if (config.maxTokens) settings.openai_max_tokens = config.maxTokens;
@@ -513,7 +531,6 @@ function saveServerApiConfig(apiType, config) {
 
       case 'claude':
         settings.claude_model = config.model || settings.claude_model;
-        if (config.apiKey !== undefined) settings.claude_key = config.apiKey;
         if (config.apiUrl !== undefined) settings.claude_url = config.apiUrl;
         break;
 
@@ -523,7 +540,6 @@ function saveServerApiConfig(apiType, config) {
 
       case 'novel':
         settings.novel_model = config.model || settings.novel_model;
-        if (config.apiKey !== undefined) settings.novel_api_key = config.apiKey;
         break;
 
       case 'textgenerationwebui':
@@ -532,13 +548,15 @@ function saveServerApiConfig(apiType, config) {
 
       case 'chat-completions':
         settings.chat_completion_model = config.model || settings.chat_completion_model;
-        if (config.apiKey !== undefined) settings.chat_completion_api_key = config.apiKey;
         if (config.apiUrl !== undefined) settings.chat_completion_url = config.apiUrl;
         break;
     }
 
-    // 保存回服务端
-    return api.post('/api/settings/save', settings);
+    // 同时保存 settings + secrets
+    return Promise.all([
+      api.post('/api/settings/save', settings),
+      _saveApiKeyToSecrets(apiType, config.apiKey)
+    ]);
   });
 }
 

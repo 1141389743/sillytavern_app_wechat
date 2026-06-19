@@ -236,12 +236,11 @@ Page({
     }, 300);
   },
 
-  /** 测试服务端 AI 连接 */
+  /** 测试服务端 AI 连接（通过 SillyTavern 后端测试） */
   async onTestServerConnection() {
     const url = this.data.stApiUrl;
     const key = this.data.stApiKey;
     const model = this.data.stModel;
-    const testType = this.data.currentTestApiType;
 
     if (!url && this.data.needApiUrl) {
       wx.showToast({ title: '请输入 API 地址', icon: 'none' });
@@ -251,32 +250,24 @@ Page({
     this.setData({ isTesting: true, testResult: '' });
 
     try {
-      let ok = false;
+      // 先保存配置到服务端
+      let backendId = this.data.currentBackendId;
+      if (backendId === 'deepseek') backendId = 'openai';
 
-      if (testType === 'anthropic') {
-        ok = await directApi.testConnection({
-          type: 'anthropic',
-          baseUrl: url,
-          apiKey: key,
-          model
-        });
-      } else if (this.data.needApiUrl && url) {
-        // OpenAI / DeepSeek / 自定义 全部走统一的 testConnection
-        ok = await directApi.testConnection({
-          type: 'openaiCompatible',
-          baseUrl: url,
-          apiKey: key,
-          model
-        });
-      } else if (!this.data.needApiUrl) {
-        // NovelAI 等无 URL 的，仅验证 Key 非空
-        ok = !!key;
-      }
+      await st.saveServerApiConfig(backendId, {
+        apiKey: key,
+        apiUrl: url,
+        model: model
+      });
+
+      // 通过 SillyTavern 的 generate 端点发一条测试消息
+      const testResult = await st.sendMessage([], 'Hi', null);
+      const ok = testResult && testResult.length > 0;
 
       this.setData({
         testResult: ok
-          ? '✅ 连接成功，API 可用'
-          : '❌ 连接失败，请检查：\n1. API 地址是否正确\n2. API Key 是否有效\n3. 网络是否通畅',
+          ? '✅ 连接成功，AI 可正常回复'
+          : '❌ 连接失败，请检查：\n1. API 地址是否正确\n2. API Key 是否有效\n3. 服务端日志获取详情',
         testSuccess: ok
       });
     } catch (e) {
