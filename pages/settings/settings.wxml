@@ -93,11 +93,15 @@
           />
         </view>
 
-        <!-- 保存按钮 -->
-        <button class="btn-save" bindtap="onSaveToServer" loading="{{isSaving}}" disabled="{{isSaving}}">
-          <text wx:if="{{!isSaving}}">💾 保存到服务端</text>
-          <text wx:if="{{isSaving}}">保存中...</text>
-        </button>
+        <!-- 按钮行 -->
+        <view class="btn-row">
+          <button class="btn-test" bindtap="onTestServerConnection" loading="{{isTesting}}" disabled="{{isTesting}}">
+            {{isTesting ? '测试中...' : '🔗 测试连接'}}
+          </button>
+          <button class="btn-save" bindtap="onSaveToServer" loading="{{isSaving}}" disabled="{{isSaving}}">
+            {{isSaving ? '保存中...' : '💾 保存'}}
+          </button>
+        </view>
 
         <!-- 结果提示 -->
         <view class="result-box result-ok" wx:if="{{saveResult && saveSuccess}}">

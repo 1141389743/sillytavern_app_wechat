@@ -1,8 +1,8 @@
 /**
- * AI 后端配置页面（美化版）
+ * AI 后端配置页面
  * 
- * 服务端模式：选择后端 → 填配置 → 保存到 SillyTavern 服务端
- * 直连模式：独立配置 → 保存到小程序本地
+ * 服务端模式：选择后端 → 填配置 → 测试 → 保存到 SillyTavern 服务端
+ * 直连模式：独立配置 → 测试 → 保存到小程序本地
  */
 
 const app = getApp();
@@ -13,29 +13,36 @@ const directApi = require('../../services/direct_api');
 const API_TYPE_KEYS = ['openaiCompatible', 'deepseek', 'anthropic', 'openrouter', 'custom'];
 const API_TYPE_NAMES = ['OpenAI', 'DeepSeek', 'Claude', 'OpenRouter', '自定义'];
 
-// ── SillyTavern 后端 ──
+// ── SillyTavern 服务端后端 ──
 const ST_BACKENDS = [
   { id: 'openai', name: 'OpenAI', icon: '🟢', tag: 'GPT',
     needKey: true, needUrl: true, needModel: true,
-    keyPlaceholder: 'sk-...', urlPlaceholder: 'https://api.openai.com', modelPlaceholder: 'gpt-4o-mini' },
+    keyPlaceholder: 'sk-...', urlPlaceholder: 'https://api.openai.com', modelPlaceholder: 'gpt-4o-mini',
+    testApiType: 'openaiCompatible' },
   { id: 'deepseek', name: 'DeepSeek', icon: '🔵', tag: '推荐',
     needKey: true, needUrl: true, needModel: true,
-    keyPlaceholder: 'sk-...', urlPlaceholder: 'https://api.deepseek.com', modelPlaceholder: 'deepseek-chat' },
+    keyPlaceholder: 'sk-...', urlPlaceholder: 'https://api.deepseek.com', modelPlaceholder: 'deepseek-chat',
+    testApiType: 'deepseek' },
   { id: 'claude', name: 'Claude', icon: '🟠', tag: 'Anthropic',
     needKey: true, needUrl: true, needModel: true,
-    keyPlaceholder: 'sk-ant-...', urlPlaceholder: 'https://api.anthropic.com', modelPlaceholder: 'claude-sonnet-4-5' },
+    keyPlaceholder: 'sk-ant-...', urlPlaceholder: 'https://api.anthropic.com', modelPlaceholder: 'claude-sonnet-4-5',
+    testApiType: 'anthropic' },
   { id: 'chat-completions', name: '自定义接口', icon: '⚙️', tag: '兼容',
     needKey: true, needUrl: true, needModel: true,
-    keyPlaceholder: 'API Key', urlPlaceholder: 'https://your-api.com/v1', modelPlaceholder: '模型名' },
+    keyPlaceholder: 'API Key', urlPlaceholder: 'https://your-api.com/v1', modelPlaceholder: '模型名',
+    testApiType: 'openaiCompatible' },
   { id: 'kobold', name: 'KoboldAI', icon: '🟤', tag: '',
     needKey: false, needUrl: true, needModel: false,
-    keyPlaceholder: '', urlPlaceholder: 'http://localhost:5001', modelPlaceholder: '' },
+    keyPlaceholder: '', urlPlaceholder: 'http://localhost:5001', modelPlaceholder: '',
+    testApiType: 'custom' },
   { id: 'novel', name: 'NovelAI', icon: '🟣', tag: '',
     needKey: true, needUrl: false, needModel: true,
-    keyPlaceholder: 'NovelAI Key', urlPlaceholder: '', modelPlaceholder: 'euterpe-v2' },
+    keyPlaceholder: 'NovelAI Key', urlPlaceholder: '', modelPlaceholder: 'euterpe-v2',
+    testApiType: 'custom' },
   { id: 'textgenerationwebui', name: 'TextGen', icon: '⚪', tag: '',
     needKey: false, needUrl: true, needModel: false,
-    keyPlaceholder: '', urlPlaceholder: 'http://localhost:5000', modelPlaceholder: '' }
+    keyPlaceholder: '', urlPlaceholder: 'http://localhost:5000', modelPlaceholder: '',
+    testApiType: 'custom' }
 ];
 
 Page({
@@ -47,6 +54,7 @@ Page({
     currentBackendId: '',
     currentBackendName: '',
     currentBackendIcon: '',
+    currentTestApiType: '',
     showApiForm: false,
     needApiKey: false,
     needApiUrl: false,
@@ -62,16 +70,18 @@ Page({
     saveResult: '',
     saveSuccess: false,
 
+    // ── 通用测试状态 ──
+    isTesting: false,
+    testResult: '',
+    testSuccess: false,
+
     // ── 直连 ──
     apiTypeIndex: 0,
     apiTypeNames: API_TYPE_NAMES,
     apiBaseUrl: '',
     apiKey: '',
     modelName: '',
-    showApiKey: false,
-    isTesting: false,
-    testResult: '',
-    testSuccess: false
+    showApiKey: false
   },
 
   onLoad() {
@@ -95,7 +105,11 @@ Page({
   // ═══════════════════════════
 
   onSelectMode(e) {
-    this.setData({ useDirectApi: e.currentTarget.dataset.mode === 'direct' });
+    this.setData({
+      useDirectApi: e.currentTarget.dataset.mode === 'direct',
+      testResult: '',
+      saveResult: ''
+    });
   },
 
   // ═══════════════════════════
@@ -107,14 +121,19 @@ Page({
       const settings = await st.getServerSettings();
       const currentApi = settings.main_api || 'openai';
 
-      // 兼容：如果服务端没有 deepseek 类型，用 openai 兼容模式
+      // 如果当前是 openai 且 url 是 deepseek，标记为 deepseek
+      let activeId = currentApi;
+      if (currentApi === 'openai' && (settings.openai_url || '').includes('deepseek')) {
+        activeId = 'deepseek';
+      }
+
       const backends = ST_BACKENDS.map(b => ({
         ...b,
-        active: b.id === currentApi
+        active: b.id === activeId
       }));
 
-      this.setData({ backends, currentBackendId: currentApi });
-      this._selectBackend(currentApi, settings);
+      this.setData({ backends, currentBackendId: activeId });
+      this._selectBackend(activeId, settings);
     } catch (e) {
       this.setData({
         backends: ST_BACKENDS.map((b, i) => ({ ...b, active: i === 0 })),
@@ -137,7 +156,7 @@ Page({
         currentModel = settings.openai_model || '';
         break;
       case 'deepseek':
-        // DeepSeek 用 OpenAI 兼容接口，配置存在 openai 字段中
+        // DeepSeek: SillyTavern 用 openai 兼容模式，配置存 openai 字段
         currentKey = settings.oai_key || '';
         currentUrl = settings.openai_url || 'https://api.deepseek.com';
         currentModel = settings.openai_model || 'deepseek-chat';
@@ -168,6 +187,7 @@ Page({
       currentBackendId: backendId,
       currentBackendName: backend.name,
       currentBackendIcon: backend.icon,
+      currentTestApiType: backend.testApiType,
       showApiForm: backend.needKey || backend.needUrl || backend.needModel,
       needApiKey: backend.needKey,
       needApiUrl: backend.needUrl,
@@ -178,7 +198,8 @@ Page({
       stApiKey: currentKey,
       stApiUrl: currentUrl,
       stModel: currentModel,
-      saveResult: ''
+      saveResult: '',
+      testResult: ''
     });
   },
 
@@ -195,18 +216,74 @@ Page({
     });
   },
 
-  onStApiKeyInput(e) { this.setData({ stApiKey: e.detail.value, saveResult: '' }); },
-  onStApiUrlInput(e) { this.setData({ stApiUrl: e.detail.value, saveResult: '' }); },
-  onStModelInput(e) { this.setData({ stModel: e.detail.value, saveResult: '' }); },
+  onStApiKeyInput(e) { this.setData({ stApiKey: e.detail.value, testResult: '', saveResult: '' }); },
+  onStApiUrlInput(e) { this.setData({ stApiUrl: e.detail.value, testResult: '', saveResult: '' }); },
+  onStModelInput(e) { this.setData({ stModel: e.detail.value, testResult: '', saveResult: '' }); },
   toggleStApiKey() { this.setData({ showStApiKey: !this.data.showStApiKey }); },
 
+  /** 测试服务端 AI 连接 */
+  async onTestServerConnection() {
+    const url = this.data.stApiUrl;
+    const key = this.data.stApiKey;
+    const testType = this.data.currentTestApiType;
+
+    if (!url && this.data.needApiUrl) {
+      wx.showToast({ title: '请输入 API 地址', icon: 'none' });
+      return;
+    }
+
+    this.setData({ isTesting: true, testResult: '' });
+
+    try {
+      let ok = false;
+
+      // 对于 OpenAI 兼容类接口（OpenAI / DeepSeek / 自定义），直接测试
+      if (testType === 'openaiCompatible' || testType === 'deepseek') {
+        ok = await directApi.testConnection({
+          type: testType === 'deepseek' ? 'deepseek' : 'openaiCompatible',
+          baseUrl: url,
+          apiKey: key,
+          model: this.data.stModel
+        });
+      } else if (testType === 'anthropic') {
+        ok = await directApi.testConnection({
+          type: 'anthropic',
+          baseUrl: url,
+          apiKey: key,
+          model: this.data.stModel
+        });
+      } else {
+        // 其他类型仅做简单 HTTP 探测
+        ok = await new Promise((resolve) => {
+          wx.request({
+            url: url,
+            method: 'GET',
+            timeout: 10000,
+            success: (res) => resolve(res.statusCode < 500),
+            fail: () => resolve(false)
+          });
+        });
+      }
+
+      this.setData({
+        testResult: ok ? '连接成功，API 可用' : '连接失败，请检查地址和 Key',
+        testSuccess: ok
+      });
+    } catch (e) {
+      this.setData({ testResult: '连接失败: ' + e.message, testSuccess: false });
+    } finally {
+      this.setData({ isTesting: false });
+    }
+  },
+
+  /** 保存配置到服务端 */
   async onSaveToServer() {
     this.setData({ isSaving: true, saveResult: '' });
 
     try {
       let backendId = this.data.currentBackendId;
 
-      // DeepSeek 走 OpenAI 兼容接口
+      // DeepSeek: SillyTavern 用 openai 兼容模式
       if (backendId === 'deepseek') {
         backendId = 'openai';
       }
@@ -244,13 +321,14 @@ Page({
     this.setData({
       apiTypeIndex: index,
       apiBaseUrl: this.data.apiBaseUrl || defaults.defaultBaseUrl,
-      modelName: this.data.modelName || defaults.defaultModel
+      modelName: this.data.modelName || defaults.defaultModel,
+      testResult: ''
     });
   },
 
-  onApiBaseUrlInput(e) { this.setData({ apiBaseUrl: e.detail.value }); },
-  onApiKeyInput(e) { this.setData({ apiKey: e.detail.value }); },
-  onModelInput(e) { this.setData({ modelName: e.detail.value }); },
+  onApiBaseUrlInput(e) { this.setData({ apiBaseUrl: e.detail.value, testResult: '' }); },
+  onApiKeyInput(e) { this.setData({ apiKey: e.detail.value, testResult: '' }); },
+  onModelInput(e) { this.setData({ modelName: e.detail.value, testResult: '' }); },
   toggleApiKey() { this.setData({ showApiKey: !this.data.showApiKey }); },
 
   async onTestConnection() {
