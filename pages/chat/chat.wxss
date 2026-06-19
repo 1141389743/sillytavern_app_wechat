@@ -7,6 +7,14 @@
   background: #f8f8f8;
 }
 
+/* 下拉刷新提示 */
+.refresh-tip {
+  text-align: center;
+  padding: 20rpx 0;
+  font-size: 24rpx;
+  color: #999;
+}
+
 /* 顶部栏 */
 .chat-header {
   display: flex;

@@ -37,7 +37,14 @@
     scroll-with-animation
     enhanced
     show-scrollbar="{{false}}"
+    refresher-enabled
+    refresher-triggered="{{isRefreshing}}"
+    bindrefresherrefresh="onPullRefresh"
   >
+    <!-- 下拉刷新提示 -->
+    <view class="refresh-tip" wx:if="{{isRefreshing}}">
+      <text>🔄 加载聊天记录中...</text>
+    </view>
     <!-- 空状态 -->
     <view class="empty-chat" wx:if="{{messages.length === 0}}">
       <text class="empty-chat-icon">💬</text>

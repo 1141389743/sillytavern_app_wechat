@@ -33,8 +33,15 @@ Page({
     // 角色信息弹窗
     showCharInfo: false,
 
+    // 下拉刷新
+    isRefreshing: false,
+
     // 聊天文件名（保存用）
-    currentChatFile: null
+    currentChatFile: null,
+
+    // 已加载的聊天会话索引
+    _chatSessionIndex: 0,
+    _chatSessions: []
   },
 
   onLoad() {
@@ -174,32 +181,93 @@ Page({
       const avatarUrl = stripPngSuffix(character.avatar);
       const chats = await st.getChatList(avatarUrl);
 
+      // 保存会话列表供下拉刷新使用
+      this._chatSessions = chats;
+      this._chatSessionIndex = 0;
+
       if (chats.length > 0) {
-        const latestChat = chats[0];
-        const fileName = latestChat.file_name || '';
-        if (fileName) {
-          this.setData({ currentChatFile: fileName });
-          const rawMessages = await st.getChatMessages(avatarUrl, fileName);
+        await this._loadChatSession(0);
+      }
+    } catch (e) {
+      console.warn('加载聊天历史失败:', e.message || e);
+      wx.showToast({ title: '加载聊天记录失败', icon: 'none', duration: 2000 });
+    }
+  },
 
-          // 转换为页面格式
-          const messages = rawMessages.map(m => ({
-            id: generateId(),
-            role: m.role,
-            content: m.content,
-            name: m.name || '',
-            timestamp: m.timestamp,
-            _time: formatTime(new Date(m.timestamp)),
-            _showAvatar: m.role === 'assistant'
-          }));
+  /** 加载指定索引的聊天会话 */
+  async _loadChatSession(index) {
+    const g = app.globalData;
+    const character = g.currentCharacter;
+    if (!character || !character.avatar) return;
 
-          this.setData({ messages });
-          this._scrollToBottom();
+    const chats = this._chatSessions;
+    if (index >= chats.length) {
+      wx.showToast({ title: '没有更早的记录了', icon: 'none' });
+      return;
+    }
+
+    const chat = chats[index];
+    const fileName = chat.file_name || '';
+    if (!fileName) return;
+
+    const avatarUrl = stripPngSuffix(character.avatar);
+    const rawMessages = await st.getChatMessages(avatarUrl, fileName);
+
+    const messages = rawMessages.map(m => ({
+      id: generateId(),
+      role: m.role,
+      content: m.content,
+      name: m.name || '',
+      timestamp: m.timestamp,
+      _time: formatTime(new Date(m.timestamp)),
+      _showAvatar: m.role === 'assistant'
+    }));
+
+    const sessionLabel = chats.length > 1
+      ? ` (${index + 1}/${chats.length})`
+      : '';
+
+    this.setData({
+      messages,
+      currentChatFile: fileName,
+      [`characterName`]: (character.name || '') + sessionLabel
+    });
+    this._scrollToBottom();
+  },
+
+  /** 下拉刷新：加载上一条（更早的）聊天记录 */
+  async onPullRefresh() {
+    if (this.data.isRefreshing) return;
+    this.setData({ isRefreshing: true });
+
+    try {
+      const nextIndex = this._chatSessionIndex + 1;
+      if (nextIndex < this._chatSessions.length) {
+        this._chatSessionIndex = nextIndex;
+        await this._loadChatSession(nextIndex);
+        wx.showToast({ title: `已加载第 ${nextIndex + 1} 条记录`, icon: 'none', duration: 1500 });
+      } else {
+        // 没有更多记录，重新拉取列表
+        const g = app.globalData;
+        const character = g.currentCharacter;
+        if (character && character.avatar) {
+          const avatarUrl = stripPngSuffix(character.avatar);
+          const chats = await st.getChatList(avatarUrl);
+          this._chatSessions = chats;
+
+          if (nextIndex < chats.length) {
+            this._chatSessionIndex = nextIndex;
+            await this._loadChatSession(nextIndex);
+          } else {
+            wx.showToast({ title: '已是最新的记录', icon: 'none' });
+          }
         }
       }
     } catch (e) {
-      // 不阻塞用户，可以开始新对话
-      console.warn('加载聊天历史失败:', e.message || e);
-      wx.showToast({ title: '加载聊天记录失败', icon: 'none', duration: 2000 });
+      console.warn('刷新聊天记录失败:', e.message || e);
+      wx.showToast({ title: '加载失败', icon: 'none' });
+    } finally {
+      this.setData({ isRefreshing: false });
     }
   },
 
