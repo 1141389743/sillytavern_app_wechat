@@ -344,3 +344,14 @@
   background: #f0f0f0;
   margin: 8rpx 40rpx;
 }
+
+/* 长按提示 */
+.longpress-hint {
+  text-align: center;
+  padding: 16rpx 0 8rpx;
+}
+
+.hint-text {
+  font-size: 22rpx;
+  color: #999;
+}

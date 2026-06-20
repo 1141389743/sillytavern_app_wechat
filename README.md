@@ -8,6 +8,7 @@
 
 | 版本 | 日期 | 更新内容 |
 |---|---|---|
+| v1.2.9 | 2026-06-20 | 角色列表增加「长按提示」，改善删除/编辑功能的可发现性 |
 | v1.2.8 | 2026-06-20 | 修复角色卡导入失败：成功判断条件与 SillyTavern 返回格式不匹配（file_name）；移除 PNG 无效的 UTF-8 回退解析 |
 | v1.2.7 | 2026-06-20 | 修复 DeepSeek 等自定义 URL 后端 Authorization Required（reverse_proxy 模式需传 proxy_password） |
 | v1.2.6 | 2026-06-20 | 登录页标题和 logo 补充版本号 |
