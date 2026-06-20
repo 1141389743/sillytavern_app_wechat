@@ -122,7 +122,7 @@ Page({
 
   onSelectUser(e) {
     const user = e.currentTarget.dataset.user;
-    if (!user.hasPassword) {
+    if (!user.password) {
       // 无密码直接登录
       this._loginAs(user.handle, '');
       return;
@@ -152,7 +152,7 @@ Page({
     const user = this.data.selectedUser;
     const password = this.data.loginPassword;
 
-    if (user.hasPassword && !password) {
+    if (user.password && !password) {
       this.setData({ errorMsg: '请输入密码' });
       return;
     }

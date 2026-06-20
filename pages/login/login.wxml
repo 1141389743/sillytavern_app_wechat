@@ -65,7 +65,7 @@
           <text class="user-name">{{item.name}}</text>
           <text class="user-handle">@{{item.handle}}</text>
         </view>
-        <view class="user-badge" wx:if="{{!item.hasPassword}}">无密码</view>
+        <view class="user-badge" wx:if="{{!item.password}}">无密码</view>
         <text class="user-arrow">›</text>
       </view>
     </view>
@@ -94,7 +94,7 @@
     </view>
 
     <view class="form-area">
-      <view class="input-group" wx:if="{{selectedUser.hasPassword}}">
+      <view class="input-group" wx:if="{{selectedUser.password}}">
         <text class="input-label">密码</text>
         <input
           class="input-field"
