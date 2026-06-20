@@ -92,7 +92,7 @@ Page({
 
       // 判断文件类型
       const isPng = url.toLowerCase().endsWith('.png');
-      const fileName = isPng ? 'character.json' : 'character.json';
+      const fileName = isPng ? 'character.png' : 'character.json';
 
       if (isPng) {
         await this._doImportFile(downloadRes.tempFilePath, 'character.png');

@@ -34,6 +34,7 @@ App({
 
   onLaunch() {
     this._loadConfig();
+    this._cleanOldTempFiles();
   },
 
   /** 从本地存储加载配置 */
@@ -56,6 +57,28 @@ App({
     this.globalData.directApi.enabled = enabled;
     wx.setStorageSync('direct_api_config', config);
     wx.setStorageSync('direct_api_enabled', enabled);
+  },
+
+  /** 清理过期临时文件（头像等），保留 7 天内的 */
+  _cleanOldTempFiles() {
+    try {
+      const fs = wx.getFileSystemManager();
+      const userPath = wx.env.USER_DATA_PATH;
+      const files = fs.readdirSync(userPath);
+      const now = Date.now();
+      const MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 天
+
+      for (const file of files) {
+        // 只清理 avatar_ 和 tmp_ 开头的临时文件
+        if (!file.startsWith('avatar_') && !file.startsWith('tmp_')) continue;
+        try {
+          const stat = fs.statSync(`${userPath}/${file}`);
+          if (stat && (now - stat.lastModifiedTime) > MAX_AGE) {
+            fs.unlinkSync(`${userPath}/${file}`);
+          }
+        } catch (e) { /* ignore */ }
+      }
+    } catch (e) { /* ignore */ }
   },
 
   /** 清除会话状态 */
