@@ -53,9 +53,12 @@ App({
 
   /** 保存直连 API 配置 */
   saveDirectApiConfig(config, enabled) {
-    this.globalData.directApi = config;
-    this.globalData.directApi.enabled = enabled;
-    wx.setStorageSync('direct_api_config', config);
+    const g = this.globalData;
+    g.directApi = { ...config, enabled };
+    // API Key 仅保存在内存，不写入本地持久化存储
+    // 防止设备被他人使用时 Key 泄露
+    const safeConfig = { ...config, apiKey: '' };
+    wx.setStorageSync('direct_api_config', safeConfig);
     wx.setStorageSync('direct_api_enabled', enabled);
   },
 

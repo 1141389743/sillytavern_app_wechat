@@ -4,6 +4,18 @@
 
 ---
 
+## [v1.3.4] - 2026-06-20
+
+### 安全修复
+- **🔴 直连 API Key 明文存储**：`saveDirectApiConfig` 将包含 `apiKey` 的完整配置写入 `wx.setStorageSync`（明文本地存储）。改为仅保存到内存，持久化存储时 `apiKey` 置空。
+- **🟡 debug 日志泄露 Key 元信息**：`_saveApiKeyToSecrets` 和 `saveServerApiConfig` 的日志中包含 `keyLen`（Key 长度），可帮助攻击者判断 Key 格式。已移除。
+
+> ⚠️ 服务端模式的 API Key 存储在 SillyTavern 服务端的 `secrets.json` 中（非小程序本地），是安全的。
+
+**涉及文件**：`app.js`、`services/sillytavern.js`
+
+---
+
 ## [v1.3.3] - 2026-06-20
 
 ### 修复
@@ -173,6 +185,7 @@
 
 ---
 
+[v1.3.4]: https://github.com/1141389743/sillytavern_app_wechat/compare/v1.3.3...v1.3.4
 [v1.3.3]: https://github.com/1141389743/sillytavern_app_wechat/compare/v1.3.2...v1.3.3
 [v1.3.2]: https://github.com/1141389743/sillytavern_app_wechat/compare/v1.3.1...v1.3.2
 [v1.3.1]: https://github.com/1141389743/sillytavern_app_wechat/compare/v1.3.0...v1.3.1

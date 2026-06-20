@@ -553,7 +553,7 @@ function _saveApiKeyToSecrets(apiType, apiKey) {
     console.warn('[_saveApiKeyToSecrets] 跳过:', { apiType, secretKey, hasKey: !!apiKey });
     return Promise.resolve();
   }
-  console.log('[_saveApiKeyToSecrets] 写入:', { key: secretKey, valueLen: apiKey.length });
+  console.log('[_saveApiKeyToSecrets] 写入:', { key: secretKey });
   return api.post('/api/secrets/write', {
     key: secretKey,
     value: apiKey,
@@ -576,7 +576,7 @@ function _saveApiKeyToSecrets(apiType, apiKey) {
  * @param {object} config - { apiKey, apiUrl, model, ... }
  */
 function saveServerApiConfig(apiType, config) {
-  console.log('[saveServerApiConfig] 入参:', { apiType, hasKey: !!config.apiKey, keyLen: (config.apiKey || '').length, model: config.model, url: config.apiUrl });
+  console.log('[saveServerApiConfig] 入参:', { apiType, hasKey: !!config.apiKey, model: config.model, url: config.apiUrl });
   return getServerSettings().then(settings => {
     settings.main_api = apiType;
 
