@@ -189,12 +189,15 @@ function getChatList(avatarUrl) {
   const cleanUrl = stripPngSuffix(avatarUrl);
   return api.post('/api/characters/chats', { avatar_url: cleanUrl })
     .then(data => {
-      if (Array.isArray(data)) return data;
-      // 兼容不同返回格式
-      if (data && Array.isArray(data.chats)) return data.chats;
-      if (data && Array.isArray(data.data)) return data.data;
-      console.warn('getChatList: 意外的返回格式', data);
-      return [];
+      let chats = [];
+      if (Array.isArray(data)) chats = data;
+      else if (data && Array.isArray(data.chats)) chats = data.chats;
+      else if (data && Array.isArray(data.data)) chats = data.data;
+      else { console.warn('getChatList: 意外的返回格式', data); return []; }
+
+      // 按 last_mes（最后修改时间）降序排列，最新的在前
+      chats.sort((a, b) => (b.last_mes || 0) - (a.last_mes || 0));
+      return chats;
     });
 }
 
