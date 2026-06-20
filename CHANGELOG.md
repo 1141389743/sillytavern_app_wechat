@@ -4,6 +4,15 @@
 
 ---
 
+## [v1.3.3] - 2026-06-20
+
+### 修复
+- **键盘自动收起**：发送消息后 `setData({ inputText: '' })` 清空文本时 `textarea` 失去焦点，键盘收起。改为先清空文字再在下一帧 `setTimeout` 恢复 `inputFocused: true`，保持键盘打开。
+
+**涉及文件**：`pages/chat/chat.js`、`pages/chat/chat.wxml`
+
+---
+
 ## [v1.3.2] - 2026-06-20
 
 ### 修复
@@ -164,6 +173,7 @@
 
 ---
 
+[v1.3.3]: https://github.com/1141389743/sillytavern_app_wechat/compare/v1.3.2...v1.3.3
 [v1.3.2]: https://github.com/1141389743/sillytavern_app_wechat/compare/v1.3.1...v1.3.2
 [v1.3.1]: https://github.com/1141389743/sillytavern_app_wechat/compare/v1.3.0...v1.3.1
 [v1.3.0]: https://github.com/1141389743/sillytavern_app_wechat/compare/v1.2.9...v1.3.0

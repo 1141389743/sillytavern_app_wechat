@@ -26,6 +26,7 @@ Page({
     canSend: false,
     scrollToId: '',
     scrollTop: 0,
+    inputFocused: true,
 
     // AI 模式
     useDirectApi: false,
@@ -87,6 +88,10 @@ Page({
     });
   },
 
+  onInputBlur() {
+    this.setData({ inputFocused: false });
+  },
+
   // === 发送消息 ===
 
   async onSend() {
@@ -108,14 +113,19 @@ Page({
     };
 
     const messages = [...this.data.messages, userMsg];
+    // 先清空文字，再立即恢复焦点，保持键盘打开
     this.setData({
       messages,
       inputText: '',
       canSend: false,
       isSending: true,
-      scrollToId: '' // 清空 scroll-into-view，用 scrollTop 控制
+      scrollToId: '',
+      inputFocused: false
     });
-    // 用户消息发出后立即滚动
+    // 下一帧重新聚焦，保持键盘不收起
+    setTimeout(() => {
+      this.setData({ inputFocused: true });
+    }, 50);
     this._scrollToBottom();
 
     try {
