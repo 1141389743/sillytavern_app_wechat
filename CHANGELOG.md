@@ -4,6 +4,16 @@
 
 ---
 
+## [v1.3.1] - 2026-06-20
+
+### 修复
+- **空 Key 覆盖 secrets**：用户保存配置时未重新输入 Key（已保存在 secrets 中，显示「已保存」），`config.apiKey` 为空 → `_saveApiKeyToSecrets` 用空值调用 → 跳过写入但缓存中 `_apiKey` 也为空。现仅当用户实际输入了 Key 时才更新 secrets。
+- **proxy_password 为空**：未缓存 Key 时 `sendMessage` 传空 `proxy_password` → 端点用空字符串做 Authorization → DeepSeek 返回 Authorization Required。现空 Key 时不传 `proxy_password`，让端点从 secrets 读取已有密钥。
+
+**涉及文件**：`services/sillytavern.js`
+
+---
+
 ## [v1.3.0] - 2026-06-20
 
 ### 修复
@@ -145,6 +155,7 @@
 
 ---
 
+[v1.3.1]: https://github.com/1141389743/sillytavern_app_wechat/compare/v1.3.0...v1.3.1
 [v1.3.0]: https://github.com/1141389743/sillytavern_app_wechat/compare/v1.2.9...v1.3.0
 [v1.2.9]: https://github.com/1141389743/sillytavern_app_wechat/compare/v1.2.8...v1.2.9
 [v1.2.8]: https://github.com/1141389743/sillytavern_app_wechat/compare/v1.2.7...v1.2.8
