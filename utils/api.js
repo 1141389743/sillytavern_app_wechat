@@ -202,24 +202,27 @@ function _refreshSession() {
 
 /**
  * 解析 Set-Cookie 头（内部方法）
+ *
+ * Set-Cookie 值中可能包含逗号（如 expires=Thu, 21 Jan 2027 ...），
+ * 不能简单按逗号分割。改用正则匹配 name=value 模式。
  */
 function _parseCookies(setCookieHeader) {
   if (!setCookieHeader) return;
-  
+
   const cookies = [];
-  const parts = setCookieHeader.split(',');
-  
-  for (const part of parts) {
-    const trimmed = part.trim();
-    const semiIdx = trimmed.indexOf(';');
-    const cookieStr = semiIdx >= 0 ? trimmed.substring(0, semiIdx) : trimmed;
-    const eqIdx = cookieStr.indexOf('=');
-    
-    if (eqIdx >= 0) {
-      cookies.push(cookieStr.trim());
+  // 匹配所有 name=value 片段，跳过属性（path, expires, secure 等）
+  const regex = /(?:^|,\s*)([^,=]+)=([^;]*)/g;
+  let match;
+
+  while ((match = regex.exec(setCookieHeader)) !== null) {
+    const name = match[1].trim();
+    const value = match[2].trim();
+    // 跳过空名或常见非 cookie 属性
+    if (name && !/^(expires|path|domain|secure|httponly|samesite|max-age)$/i.test(name)) {
+      cookies.push(`${name}=${value}`);
     }
   }
-  
+
   if (cookies.length > 0) {
     getApp().globalData.sessionCookies = cookies.join('; ');
   }

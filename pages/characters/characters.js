@@ -128,7 +128,8 @@ Page({
             }
           });
         }
-        if (chars.length === 0) resolve();
+        // 所有角色都没有头像，或已全部启动下载
+        if (running === 0) resolve();
       };
       next();
     });

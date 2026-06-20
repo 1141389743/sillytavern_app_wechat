@@ -187,6 +187,18 @@ Page({
 
       if (chats.length > 0) {
         await this._loadChatSession(0);
+      } else if (this.data.greeting) {
+        // 无历史记录但有开场白：将开场白作为第一条消息
+        const greetingMsg = {
+          id: generateId(),
+          role: 'assistant',
+          content: this.data.greeting,
+          name: character.name,
+          timestamp: Date.now(),
+          _time: formatTime(new Date()),
+          _showAvatar: true
+        };
+        this.setData({ messages: [greetingMsg] });
       }
     } catch (e) {
       console.warn('加载聊天历史失败:', e.message || e);

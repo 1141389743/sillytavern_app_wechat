@@ -190,6 +190,21 @@ Page({
         break;
     }
 
+    // v1.2.1+ key 存在 secrets 中，settings 读不到，显示占位提示
+    let keyPlaceholder = backend.keyPlaceholder;
+    if (!currentKey && backend.needKey) {
+      const hasConfig = (backendId === 'openai' || backendId === 'deepseek')
+        ? !!(settings.openai_url || settings.openai_model)
+        : backendId === 'claude'
+        ? !!(settings.claude_url || settings.claude_model)
+        : backendId === 'chat-completions'
+        ? !!(settings.chat_completion_url || settings.chat_completion_model)
+        : false;
+      if (hasConfig) {
+        keyPlaceholder = '已保存（留空则不更新）';
+      }
+    }
+
     this.setData({
       currentBackendId: backendId,
       currentBackendName: backend.name,
@@ -199,7 +214,7 @@ Page({
       needApiKey: backend.needKey,
       needApiUrl: backend.needUrl,
       needModel: backend.needModel,
-      apiKeyPlaceholder: backend.keyPlaceholder,
+      apiKeyPlaceholder: keyPlaceholder,
       apiUrlPlaceholder: backend.urlPlaceholder,
       modelPlaceholder: backend.modelPlaceholder,
       stApiKey: currentKey,

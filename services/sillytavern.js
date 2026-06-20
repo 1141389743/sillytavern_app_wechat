@@ -259,24 +259,28 @@ function deleteChat(avatarUrl, chatfile) {
 // AI 生成接口
 // ============================================================
 
-/** 清除 UI 附加字段，只保留 SillyTavern 原始角色数据 */
-function _cleanCharacterForApi(character) {
-  if (!character) return character;
-  const clean = {};
-  const skip = new Set(['_avatarUrl', '_avatarPath', '_summary', '_avatarFailed', '_index']);
-  for (const key of Object.keys(character)) {
-    if (!skip.has(key)) {
-      clean[key] = character[key];
-    }
-  }
-  return clean;
-}
+/**
+ * SillyTavern main_api → chat_completion_source 映射
+ * generate 端点通过 chat_completion_source 路由到对应后端处理器
+ * 参见 SillyTavern src/endpoints/backends/chat-completions.js 第 2179 行
+ */
+const _CHAT_COMPLETION_SOURCE_MAP = {
+  'openai': 'openai',
+  'claude': 'claude',
+  'chat-completions': 'custom',
+  'kobold': 'custom',
+  'novel': 'novel',
+  'textgenerationwebui': 'custom',
+};
 
 /**
  * 发送消息并获取 AI 回复（非流式）
  * POST /api/backends/chat-completions/generate
+ *
+ * 必须发送 chat_completion_source，否则端点无法路由到正确的 AI 后端，会返回 400。
+ * 不发送 char 字段——SillyTavern 服务端已加载角色，generate 端点不使用此字段。
  */
-function sendMessage(history, userMessage, character, overrideParams) {
+async function sendMessage(history, userMessage, character, overrideParams) {
   const messages = [];
 
   if (history && history.length > 0) {
@@ -292,30 +296,63 @@ function sendMessage(history, userMessage, character, overrideParams) {
 
   messages.push({ role: 'user', content: userMessage });
 
+  // 构建请求体：chat_completion_source 是必填字段
   const body = { messages };
-  if (character) body.char = _cleanCharacterForApi(character);
+
+  // 从服务端设置中获取当前 AI 后端类型，映射为 chat_completion_source
+  // 如果缓存为空，先拉取一次
+  let settings = getApp().globalData._cachedSettings;
+  if (!settings) {
+    try {
+      settings = await getServerSettings();
+    } catch (e) {
+      console.warn('[sendMessage] 获取设置失败，使用默认 openai:', e.message);
+      settings = {};
+    }
+  }
+
+  const mainApi = settings.main_api || 'openai';
+  body.chat_completion_source = _CHAT_COMPLETION_SOURCE_MAP[mainApi] || 'openai';
+
+  // 对于 openai 后端，如果有自定义 URL，需要通过 reverse_proxy 传给 generate 端点
+  if (mainApi === 'openai' && settings.openai_url) {
+    body.reverse_proxy = settings.openai_url;
+  }
+  // chat-completions 自定义接口：custom_url
+  if (mainApi === 'chat-completions' && settings.chat_completion_url) {
+    body.custom_url = settings.chat_completion_url;
+  }
+
+  // 传递模型名
+  if (settings.openai_model && mainApi === 'openai') {
+    body.model = settings.openai_model;
+  } else if (settings.chat_completion_model && mainApi === 'chat-completions') {
+    body.model = settings.chat_completion_model;
+  } else if (settings.claude_model && mainApi === 'claude') {
+    body.model = settings.claude_model;
+  }
+
   if (overrideParams) Object.assign(body, overrideParams);
 
   console.log('[sendMessage] 请求体:', JSON.stringify(body).slice(0, 1000));
 
-  return api.post('/api/backends/chat-completions/generate', body, { timeout: 120000 })
-    .then(data => {
-      console.log('[sendMessage] 响应:', JSON.stringify(data).slice(0, 500));
-      // 解析 OpenAI 兼容格式响应
-      if (data.choices && data.choices.length > 0) {
-        const choice = data.choices[0];
-        if (choice.message && choice.message.content) {
-          return choice.message.content;
-        }
-        if (choice.text) return choice.text;
+  try {
+    const data = await api.post('/api/backends/chat-completions/generate', body, { timeout: 120000 });
+    console.log('[sendMessage] 响应:', JSON.stringify(data).slice(0, 500));
+    // 解析 OpenAI 兼容格式响应
+    if (data.choices && data.choices.length > 0) {
+      const choice = data.choices[0];
+      if (choice.message && choice.message.content) {
+        return choice.message.content;
       }
-      if (data.message) return data.message;
-      return '（无回复）';
-    })
-    .catch(err => {
-      console.error('[sendMessage] 错误:', err.message);
-      throw err;
-    });
+      if (choice.text) return choice.text;
+    }
+    if (data.message) return data.message;
+    return '（无回复）';
+  } catch (err) {
+    console.error('[sendMessage] 错误:', err.message);
+    throw err;
+  }
 }
 
 // ============================================================
@@ -474,16 +511,20 @@ function parseSillyTavernMessage(json) {
 /**
  * 获取服务端完整设置
  * POST /api/settings/get
+ * 同时缓存到 globalData._cachedSettings 供 sendMessage 使用
  */
 function getServerSettings() {
   return api.post('/api/settings/get').then(data => {
     const settingsStr = data.settings;
+    let settings = {};
     if (settingsStr) {
       try {
-        return typeof settingsStr === 'string' ? JSON.parse(settingsStr) : settingsStr;
-      } catch (e) { return {}; }
+        settings = typeof settingsStr === 'string' ? JSON.parse(settingsStr) : settingsStr;
+      } catch (e) { settings = {}; }
     }
-    return {};
+    // 缓存设置供 sendMessage 读取 chat_completion_source
+    getApp().globalData._cachedSettings = settings;
+    return settings;
   });
 }
 
@@ -563,11 +604,15 @@ function saveServerApiConfig(apiType, config) {
         break;
     }
 
-    // 同时保存 settings + secrets
+    // 同时保存 settings + secrets，并更新缓存
     return Promise.all([
       api.post('/api/settings/save', settings),
       _saveApiKeyToSecrets(apiType, config.apiKey)
-    ]);
+    ]).then(result => {
+      // 更新缓存，确保后续 sendMessage 能读到最新配置
+      getApp().globalData._cachedSettings = settings;
+      return result;
+    });
   });
 }
 
