@@ -25,6 +25,7 @@ Page({
     inputText: '',
     canSend: false,
     scrollToId: '',
+    scrollTop: 0,
 
     // AI 模式
     useDirectApi: false,
@@ -111,8 +112,10 @@ Page({
       messages,
       inputText: '',
       canSend: false,
-      isSending: true
+      isSending: true,
+      scrollToId: '' // 清空 scroll-into-view，用 scrollTop 控制
     });
+    // 用户消息发出后立即滚动
     this._scrollToBottom();
 
     try {
@@ -331,9 +334,24 @@ Page({
   // === 工具 ===
 
   _scrollToBottom() {
+    // 先用 scroll-into-view 快速定位，再用 scroll-top 精确补偿
+    this.setData({ scrollToId: 'msg-bottom' });
+    // 延迟后用 scroll-top 精确滚动到底部（补偿 scroll-into-view 可能的偏差）
     setTimeout(() => {
-      this.setData({ scrollToId: 'msg-bottom' });
-    }, 100);
+      this.setData({ scrollToId: '' });
+      const query = wx.createSelectorQuery();
+      query.select('.message-list').boundingClientRect();
+      query.select('#msg-bottom').boundingClientRect();
+      query.exec((res) => {
+        if (res[0] && res[1]) {
+          const listHeight = res[0].height;
+          const bottomTop = res[1].top;
+          if (bottomTop > listHeight) {
+            this.setData({ scrollTop: bottomTop - listHeight + 100 });
+          }
+        }
+      });
+    }, 150);
   },
 
   _getTypeName(type) {

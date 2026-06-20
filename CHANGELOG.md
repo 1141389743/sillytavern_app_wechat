@@ -4,6 +4,15 @@
 
 ---
 
+## [v1.3.2] - 2026-06-20
+
+### 修复
+- **聊天滚动体验**：发送消息或收到回复后需要手动下滑才能看到新消息。改为 `scroll-into-view` + `scroll-top` 双重滚动机制，先用 `scroll-into-view` 快速定位，再用 `scroll-top` 精确补偿，确保新消息始终可见。
+
+**涉及文件**：`pages/chat/chat.js`、`pages/chat/chat.wxml`
+
+---
+
 ## [v1.3.1] - 2026-06-20
 
 ### 修复
@@ -155,6 +164,7 @@
 
 ---
 
+[v1.3.2]: https://github.com/1141389743/sillytavern_app_wechat/compare/v1.3.1...v1.3.2
 [v1.3.1]: https://github.com/1141389743/sillytavern_app_wechat/compare/v1.3.0...v1.3.1
 [v1.3.0]: https://github.com/1141389743/sillytavern_app_wechat/compare/v1.2.9...v1.3.0
 [v1.2.9]: https://github.com/1141389743/sillytavern_app_wechat/compare/v1.2.8...v1.2.9

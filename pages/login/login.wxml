@@ -7,7 +7,7 @@
   <view class="content" wx:if="{{!showUserList && !selectedUser}}">
     <view class="logo-area">
       <view class="logo-icon">🍺</view>
-      <view class="logo-title">酒馆AI v1.3.1</view>
+      <view class="logo-title">酒馆AI v1.3.2</view>
       <view class="logo-sub">SillyTavern 微信小程序</view>
     </view>
 

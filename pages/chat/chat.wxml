@@ -33,6 +33,7 @@
   <scroll-view
     class="message-list"
     scroll-y
+    scroll-top="{{scrollTop}}"
     scroll-into-view="{{scrollToId}}"
     scroll-with-animation
     enhanced
