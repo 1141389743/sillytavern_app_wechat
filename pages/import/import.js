@@ -121,15 +121,28 @@ Page({
 
     try {
       const result = await st.importCharacterFile(filePath, fileName);
+      console.log('[import] 服务端返回:', JSON.stringify(result));
 
-      if (result && (result.ok || result.avatar_name || result.character)) {
+      // SillyTavern /api/characters/import 成功返回 { file_name: "xxx" }
+      // 失败返回 { error: true } 或 HTTP 400
+      const isOk = result && (
+        result.file_name ||
+        result.ok ||
+        result.avatar_name ||
+        result.character ||
+        (typeof result === 'string' && result.length > 0)
+      );
+
+      const isError = result && result.error === true;
+
+      if (isOk && !isError) {
         this._showStatus('✅ 角色导入成功！', true);
         // 刷新角色列表
         const characters = await st.getCharacters();
         app.globalData.characters = characters;
       } else {
-        // 如果 PNG 导入失败，尝试本地解析
-        if (fileName.endsWith('.png')) {
+        // JSON 文件尝试本地解析后重新上传
+        if (fileName.endsWith('.json')) {
           this.setData({ statusMessage: '服务端导入失败，尝试本地解析...' });
           try {
             const fs = wx.getFileSystemManager();
@@ -137,10 +150,11 @@ Page({
             const charData = JSON.parse(content);
             await this._doImportData(charData);
           } catch (e) {
-            this._showStatus('❌ 无法解析角色卡片，请确认格式正确', false);
+            this._showStatus('❌ JSON 解析失败: ' + e.message, false);
           }
         } else {
-          this._showStatus('❌ 导入失败，请检查角色卡格式', false);
+          const detail = result && result.error ? '服务端拒绝了该文件' : JSON.stringify(result);
+          this._showStatus('❌ 导入失败: ' + detail, false);
         }
       }
     } catch (err) {
@@ -155,7 +169,8 @@ Page({
 
     try {
       const result = await st.importCharacterData(charData);
-      if (result && (result.ok || result.avatar_name || result.character)) {
+      console.log('[import] JSON导入返回:', JSON.stringify(result));
+      if (result && (result.file_name || result.ok || result.avatar_name || result.character || typeof result === 'string')) {
         this._showStatus('✅ 角色导入成功！', true);
         const characters = await st.getCharacters();
         app.globalData.characters = characters;

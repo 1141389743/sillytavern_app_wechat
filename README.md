@@ -8,6 +8,9 @@
 
 | 版本 | 日期 | 更新内容 |
 |---|---|---|
+| v1.2.8 | 2026-06-20 | 修复角色卡导入失败：成功判断条件与 SillyTavern 返回格式不匹配（file_name）；移除 PNG 无效的 UTF-8 回退解析 |
+| v1.2.7 | 2026-06-20 | 修复 DeepSeek 等自定义 URL 后端 Authorization Required（reverse_proxy 模式需传 proxy_password） |
+| v1.2.6 | 2026-06-20 | 登录页标题和 logo 补充版本号 |
 | v1.2.5 | 2026-06-20 | 修复有密码账号无法登录：字段名 hasPassword→password（SillyTavern API 返回格式适配） |
 | v1.2.4 | 2026-06-20 | 修复 import.js 文件类型判断死代码；新增头像临时文件自动清理（7天过期） |
 | v1.2.3 | 2026-06-20 | 修复 generate 端点 400（添加 chat_completion_source）；修复 Cookie 解析逗号截断；修复头像加载死循环；开场白作为首条消息显示 |
