@@ -315,8 +315,10 @@ async function sendMessage(history, userMessage, character, overrideParams) {
   body.chat_completion_source = _CHAT_COMPLETION_SOURCE_MAP[mainApi] || 'openai';
 
   // 对于 openai 后端，如果有自定义 URL，需要通过 reverse_proxy 传给 generate 端点
+  // 同时必须传 proxy_password（API Key），否则端点无法读取密钥
   if (mainApi === 'openai' && settings.openai_url) {
     body.reverse_proxy = settings.openai_url;
+    body.proxy_password = settings._apiKey || '';
   }
   // chat-completions 自定义接口：custom_url
   if (mainApi === 'chat-completions' && settings.chat_completion_url) {
@@ -609,7 +611,10 @@ function saveServerApiConfig(apiType, config) {
       api.post('/api/settings/save', settings),
       _saveApiKeyToSecrets(apiType, config.apiKey)
     ]).then(result => {
-      // 更新缓存，确保后续 sendMessage 能读到最新配置
+      // 缓存中额外保存 API Key（secrets 无法读回，需要内存缓存）
+      if (config.apiKey) {
+        settings._apiKey = config.apiKey;
+      }
       getApp().globalData._cachedSettings = settings;
       return result;
     });
