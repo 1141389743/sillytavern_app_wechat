@@ -36,6 +36,11 @@ App({
     this._loadConfig();
     this._cleanOldTempFiles();
     this._setupNetworkListener();
+    // 清理过期 TTS 临时文件
+    try {
+      const tts = require('./services/tts');
+      tts.cleanOldTtsFiles();
+    } catch (e) {}
   },
 
   /** 从本地存储加载配置 */

@@ -8,6 +8,7 @@ const st = require('../../services/sillytavern');
 const directApi = require('../../services/direct_api');
 const { formatTime, generateId, stripPngSuffix } = require('../../utils/util');
 const { markdownToWxml } = require('../../utils/markdown');
+const tts = require('../../services/tts');
 
 Page({
   data: {
@@ -40,6 +41,10 @@ Page({
     menuMessageId: '',
     menuMessageContent: '',
     menuMessageRole: '',
+
+    // TTS 播放状态
+    isTtsPlaying: false,
+    ttsPlayingMsgId: '',
 
     // 下拉刷新
     isRefreshing: false,
@@ -490,6 +495,57 @@ Page({
         this._saveLocalChat(updated);
       }
     }
+  },
+
+  // === TTS 朗读 ===
+
+  async onMenuReadAloud() {
+    const { menuMessageId, menuMessageContent } = this.data;
+    this.hideMsgMenu();
+    if (!menuMessageContent) return;
+
+    // 如果正在播放同一条，停止
+    if (this.data.isTtsPlaying && this.data.ttsPlayingMsgId === menuMessageId) {
+      tts.stopAudio();
+      this.setData({ isTtsPlaying: false, ttsPlayingMsgId: '' });
+      return;
+    }
+
+    this.setData({ isTtsPlaying: true, ttsPlayingMsgId: menuMessageId });
+    wx.showLoading({ title: '正在合成语音...' });
+
+    try {
+      let textToSpeak = menuMessageContent;
+
+      // 可选：AI 情感分析
+      const ttsConfig = tts.getTtsConfig();
+      if (ttsConfig.enableEmotion) {
+        wx.showLoading({ title: 'AI 分析情感中...' });
+        const emotionResult = await tts.analyzeEmotion(menuMessageContent);
+        textToSpeak = emotionResult.text;
+        console.log('[TTS] 情感:', emotionResult.emotion);
+      }
+
+      wx.showLoading({ title: '合成语音中...' });
+      const filePath = await tts.synthesize(textToSpeak);
+      wx.hideLoading();
+
+      tts.playAudio(filePath, (err) => {
+        this.setData({ isTtsPlaying: false, ttsPlayingMsgId: '' });
+        if (err) {
+          wx.showToast({ title: '播放失败', icon: 'none' });
+        }
+      });
+    } catch (e) {
+      wx.hideLoading();
+      this.setData({ isTtsPlaying: false, ttsPlayingMsgId: '' });
+      wx.showToast({ title: '朗读失败: ' + e.message, icon: 'none' });
+    }
+  },
+
+  onStopTts() {
+    tts.stopAudio();
+    this.setData({ isTtsPlaying: false, ttsPlayingMsgId: '' });
   },
 
   // === 聊天历史 ===

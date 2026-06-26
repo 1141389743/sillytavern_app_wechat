@@ -231,5 +231,122 @@
         </view>
       </view>
     </view>
+    <!-- ═══════════════════════════════════ -->
+    <!-- TTS 语音朗读配置                    -->
+    <!-- ═══════════════════════════════════ -->
+    <view class="section-header" style="margin-top:32rpx;" bindtap="onToggleTtsSection">
+      <text class="section-icon">🔊</text>
+      <text class="section-title">语音朗读 (TTS)</text>
+      <text class="section-arrow">{{showTtsSection ? '▲' : '▼'}}</text>
+    </view>
+
+    <view wx:if="{{showTtsSection}}">
+      <!-- 后端选择 -->
+      <view class="config-card">
+        <view class="field-group">
+          <text class="field-label">🎤 TTS 引擎</text>
+          <view class="type-scroll">
+            <view class="type-chip {{ttsBackend === 'edge' ? 'type-chip-active' : ''}}" bindtap="onTtsBackendChange" data-value="edge">Edge TTS (免费)</view>
+            <view class="type-chip {{ttsBackend === 'openai' ? 'type-chip-active' : ''}}" bindtap="onTtsBackendChange" data-value="openai">OpenAI TTS</view>
+            <view class="type-chip {{ttsBackend === 'custom' ? 'type-chip-active' : ''}}" bindtap="onTtsBackendChange" data-value="custom">自定义</view>
+          </view>
+        </view>
+
+        <!-- OpenAI TTS 配置 -->
+        <view wx:if="{{ttsBackend === 'openai'}}">
+          <view class="field-group">
+            <text class="field-label">🌐 API 地址</text>
+            <input class="field-input" placeholder="https://api.openai.com" value="{{ttsOpenaiBaseUrl}}" bindinput="onTtsOpenaiBaseUrlInput" />
+          </view>
+          <view class="field-group">
+            <text class="field-label">🔑 API Key</text>
+            <view class="field-input-wrap">
+              <input class="field-input" placeholder="sk-..." value="{{ttsOpenaiApiKey}}" bindinput="onTtsOpenaiApiKeyInput" password="{{!showTtsApiKey}}" />
+              <view class="field-eye" bindtap="toggleTtsApiKey"><text>{{showTtsApiKey ? '🙈' : '👁️'}}</text></view>
+            </view>
+          </view>
+          <view class="field-group">
+            <text class="field-label">🧠 模型</text>
+            <input class="field-input" placeholder="tts-1" value="{{ttsOpenaiModel}}" bindinput="onTtsOpenaiModelInput" />
+          </view>
+        </view>
+
+        <!-- 自定义 TTS 配置 -->
+        <view wx:if="{{ttsBackend === 'custom'}}">
+          <view class="field-group">
+            <text class="field-label">🌐 TTS API 地址</text>
+            <input class="field-input" placeholder="https://your-tts-api.com/synthesize" value="{{ttsCustomUrl}}" bindinput="onTtsCustomUrlInput" />
+          </view>
+        </view>
+
+        <!-- 音色选择 -->
+        <view class="field-group">
+          <text class="field-label">🎵 音色</text>
+          <picker range="{{ttsVoices}}" range-key="name" bindchange="onTtsVoiceChange">
+            <view class="picker-value">
+              {{ttsVoices[ttsVoice] || ttsVoice}}
+              <text class="picker-arrow">▼</text>
+            </view>
+          </picker>
+          <!-- 音色列表展示 -->
+          <view class="voice-grid">
+            <view
+              class="voice-chip {{item.id === ttsVoice ? 'voice-chip-active' : ''}}"
+              wx:for="{{ttsVoices}}"
+              wx:key="id"
+              bindtap="onTtsVoiceChange"
+              data-index="{{index}}"
+            >
+              <text class="voice-name">{{item.name}}</text>
+              <text class="voice-desc">{{item.desc}}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 语速 -->
+        <view class="field-group">
+          <text class="field-label">⚡ 语速: {{ttsSpeed}}x</text>
+          <slider min="0.5" max="2.0" step="0.1" value="{{ttsSpeed}}" bindchange="onTtsSpeedChange" activeColor="#6C5CE7" show-value="true" />
+        </view>
+
+        <!-- AI 情感分析 -->
+        <view class="field-group">
+          <view class="field-row">
+            <view>
+              <text class="field-label">🎭 AI 情感解读</text>
+              <text class="field-hint">让 AI 先分析文本情感再朗读（消耗 1 次 API 调用）</text>
+            </view>
+            <switch checked="{{ttsEnableEmotion}}" bindchange="onTtsEmotionToggle" color="#6C5CE7" />
+          </view>
+        </view>
+
+        <!-- 测试 + 保存 -->
+        <view class="btn-row">
+          <button class="btn-test" bindtap="onTestTts" loading="{{isTestingTts}}" disabled="{{isTestingTts}}">
+            {{isTestingTts ? '合成中...' : '🔊 测试朗读'}}
+          </button>
+          <button class="btn-save" bindtap="onSaveTts">💾 保存</button>
+        </view>
+
+        <!-- 测试结果 -->
+        <view class="result-box result-ok" wx:if="{{ttsTestResult && ttsTestSuccess}}">
+          <text class="result-icon">✅</text>
+          <text class="result-text">{{ttsTestResult}}</text>
+        </view>
+        <view class="result-box result-err" wx:if="{{ttsTestResult && !ttsTestSuccess}}">
+          <text class="result-icon">❌</text>
+          <text class="result-text">{{ttsTestResult}}</text>
+        </view>
+      </view>
+
+      <!-- TTS 说明 -->
+      <view class="tip-card">
+        <text class="tip-icon">💡</text>
+        <view class="tip-content">
+          <text class="tip-title">语音朗读说明</text>
+          <text class="tip-text">在聊天页长按 AI 消息 → 选择「🔊 朗读」即可。Edge TTS 免费无需 API Key，支持中英日多种音色。开启「AI 情感解读」后，大模型会先分析文本情感再合成语音，效果更生动。</text>
+        </view>
+      </view>
+    </view>
   </view>
 </view>

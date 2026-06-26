@@ -364,3 +364,76 @@
   line-height: 1.6;
   display: block;
 }
+
+/* ═══════════════════════════════ */
+/* TTS 音色选择                    */
+/* ═══════════════════════════════ */
+
+.voice-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 12rpx;
+}
+
+.voice-chip {
+  padding: 12rpx 20rpx;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 20rpx;
+  border: 2rpx solid transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 140rpx;
+}
+
+.voice-chip-active {
+  background: rgba(108, 92, 231, 0.1);
+  border-color: var(--primary);
+}
+
+.voice-name {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: var(--on-surface);
+}
+
+.voice-desc {
+  font-size: 20rpx;
+  color: var(--on-surface-secondary);
+  margin-top: 4rpx;
+}
+
+.field-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.field-hint {
+  font-size: 22rpx;
+  color: var(--on-surface-secondary);
+  display: block;
+  margin-top: 4rpx;
+}
+
+.picker-value {
+  font-size: 28rpx;
+  color: var(--on-surface);
+  padding: 16rpx 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.picker-arrow {
+  font-size: 20rpx;
+  color: var(--on-surface-secondary);
+  margin-left: 8rpx;
+}
+
+.section-arrow {
+  font-size: 24rpx;
+  color: var(--on-surface-secondary);
+  margin-left: auto;
+}

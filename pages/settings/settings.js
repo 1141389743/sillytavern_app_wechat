@@ -8,6 +8,7 @@
 const app = getApp();
 const st = require('../../services/sillytavern');
 const directApi = require('../../services/direct_api');
+const tts = require('../../services/tts');
 
 // ── 直连 API 类型 ──
 const API_TYPE_KEYS = ['openaiCompatible', 'deepseek', 'anthropic', 'openrouter', 'custom'];
@@ -81,7 +82,23 @@ Page({
     apiBaseUrl: '',
     apiKey: '',
     modelName: '',
-    showApiKey: false
+    showApiKey: false,
+
+    // ── TTS ──
+    ttsBackend: 'edge',
+    ttsVoice: 'zh-CN-XiaoxiaoNeural',
+    ttsSpeed: 1.0,
+    ttsVoices: [],
+    ttsEnableEmotion: false,
+    ttsOpenaiBaseUrl: '',
+    ttsOpenaiApiKey: '',
+    ttsOpenaiModel: 'tts-1',
+    ttsCustomUrl: '',
+    showTtsSection: false,
+    showTtsApiKey: false,
+    isTestingTts: false,
+    ttsTestResult: '',
+    ttsTestSuccess: false
   },
 
   onLoad() {
@@ -98,6 +115,7 @@ Page({
     });
 
     this._loadBackends();
+    this._loadTtsConfig();
   },
 
   // ═══════════════════════════
@@ -388,5 +406,114 @@ Page({
 
     wx.showToast({ title: '已保存', icon: 'success' });
     setTimeout(() => wx.navigateBack(), 1000);
+  },
+
+  // ═══════════════════════════
+  // TTS 语音朗读配置
+  // ═══════════════════════════
+
+  _loadTtsConfig() {
+    const cfg = tts.getTtsConfig();
+    const voices = tts.getVoices(cfg.backend);
+    this.setData({
+      ttsBackend: cfg.backend,
+      ttsVoice: cfg.voice,
+      ttsSpeed: cfg.speed,
+      ttsVoices: voices,
+      ttsEnableEmotion: cfg.enableEmotion || false,
+      ttsOpenaiBaseUrl: cfg.openaiBaseUrl || '',
+      ttsOpenaiModel: cfg.openaiModel || 'tts-1',
+      ttsCustomUrl: cfg.customUrl || '',
+      showTtsSection: false
+    });
+  },
+
+  onToggleTtsSection() {
+    this.setData({ showTtsSection: !this.data.showTtsSection });
+  },
+
+  onTtsBackendChange(e) {
+    const backend = e.currentTarget.dataset.value;
+    const voices = tts.getVoices(backend);
+    this.setData({
+      ttsBackend: backend,
+      ttsVoices: voices,
+      ttsVoice: voices[0]?.id || '',
+      ttsTestResult: ''
+    });
+  },
+
+  onTtsVoiceChange(e) {
+    // 支持 picker (detail.value) 和 点击 (currentTarget.dataset.index) 两种方式
+    let index;
+    if (e.detail && e.detail.value !== undefined) {
+      index = parseInt(e.detail.value);
+    } else if (e.currentTarget && e.currentTarget.dataset.index !== undefined) {
+      index = parseInt(e.currentTarget.dataset.index);
+    }
+    const voice = this.data.ttsVoices[index];
+    if (voice) {
+      this.setData({ ttsVoice: voice.id, ttsTestResult: '' });
+    }
+  },
+
+  onTtsSpeedChange(e) {
+    this.setData({ ttsSpeed: parseFloat(e.detail.value) });
+  },
+
+  onTtsEmotionToggle(e) {
+    this.setData({ ttsEnableEmotion: e.detail.value });
+  },
+
+  onTtsOpenaiBaseUrlInput(e) { this.setData({ ttsOpenaiBaseUrl: e.detail.value }); },
+  onTtsOpenaiApiKeyInput(e) { this.setData({ ttsOpenaiApiKey: e.detail.value }); },
+  onTtsOpenaiModelInput(e) { this.setData({ ttsOpenaiModel: e.detail.value }); },
+  onTtsCustomUrlInput(e) { this.setData({ ttsCustomUrl: e.detail.value }); },
+  toggleTtsApiKey() { this.setData({ showTtsApiKey: !this.data.showTtsApiKey }); },
+
+  async onTestTts() {
+    this.setData({ isTestingTts: true, ttsTestResult: '' });
+
+    try {
+      const config = {
+        backend: this.data.ttsBackend,
+        voice: this.data.ttsVoice,
+        speed: this.data.ttsSpeed,
+        openaiBaseUrl: this.data.ttsOpenaiBaseUrl,
+        openaiApiKey: this.data.ttsOpenaiApiKey,
+        openaiModel: this.data.ttsOpenaiModel,
+        customUrl: this.data.ttsCustomUrl
+      };
+
+      const filePath = await tts.synthesize('你好，这是一段语音测试。', config);
+      tts.playAudio(filePath, (err) => {
+        if (err) {
+          this.setData({ ttsTestResult: '播放失败: ' + err.message, ttsTestSuccess: false });
+        } else {
+          this.setData({ ttsTestResult: '✅ 语音合成并播放成功！', ttsTestSuccess: true });
+        }
+      });
+
+      this.setData({ ttsTestResult: '正在播放...', ttsTestSuccess: true });
+    } catch (e) {
+      this.setData({ ttsTestResult: '❌ 失败: ' + e.message, ttsTestSuccess: false });
+    } finally {
+      this.setData({ isTestingTts: false });
+    }
+  },
+
+  onSaveTts() {
+    tts.saveTtsConfig({
+      backend: this.data.ttsBackend,
+      voice: this.data.ttsVoice,
+      speed: this.data.ttsSpeed,
+      enableEmotion: this.data.ttsEnableEmotion,
+      openaiBaseUrl: this.data.ttsOpenaiBaseUrl,
+      openaiApiKey: this.data.ttsOpenaiApiKey,
+      openaiModel: this.data.ttsOpenaiModel,
+      customUrl: this.data.ttsCustomUrl
+    });
+
+    wx.showToast({ title: 'TTS 配置已保存', icon: 'success' });
   }
 });
