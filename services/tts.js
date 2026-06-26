@@ -215,37 +215,10 @@ function _synthesizeOpenAi(text, cfg) {
   });
 }
 
-/** Edge TTS（通过公共代理） */
+/** Edge TTS（WebSocket 直连） */
 function _synthesizeEdge(text, cfg) {
-  return new Promise((resolve, reject) => {
-    const voice = cfg.voice || 'zh-CN-XiaoxiaoNeural';
-    const rate = Math.round((cfg.speed - 1) * 100); // 转换为百分比: -75 ~ +300
-    const rateStr = rate >= 0 ? `+${rate}%` : `${rate}%`;
-
-    // 使用公共 Edge TTS 代理
-    // 如果你有自己的代理，替换此 URL
-    const proxyUrl = 'https://edge-tts.pages.dev/api/tts';
-
-    const reqUrl = `${proxyUrl}?voice=${encodeURIComponent(voice)}&rate=${encodeURIComponent(rateStr)}&text=${encodeURIComponent(text.slice(0, 5000))}`;
-
-    wx.request({
-      url: reqUrl,
-      method: 'GET',
-      responseType: 'arraybuffer',
-      timeout: 30000,
-      success(res) {
-        if (res.statusCode === 200 && res.data) {
-          _writeAudioFile(res.data, 'mp3').then(resolve).catch(reject);
-        } else {
-          reject(new Error(`Edge TTS 失败 (${res.statusCode})`));
-        }
-      },
-      fail(err) {
-        // 代理不可用时回退到直连 Edge WebSocket
-        _synthesizeEdgeDirect(text, cfg).then(resolve).catch(reject);
-      }
-    });
-  });
+  // 直接使用 WebSocket 连接 Edge TTS 服务
+  return _synthesizeEdgeDirect(text, cfg);
 }
 
 /** Edge TTS 直连（WebSocket 方式，作为回退） */
@@ -316,13 +289,14 @@ function _synthesizeEdgeDirect(text, cfg) {
               reject(new Error('Edge TTS 未返回音频数据'));
             }
           }
-        } else if (data instanceof ArrayBuffer) {
+        } else if (data && (data instanceof ArrayBuffer || (data.buffer instanceof ArrayBuffer) || (typeof data.byteLength === 'number'))) {
           // 二进制消息：提取音频数据
-          // 前 2 bytes 是 header length，然后是 header，再后面是音频
-          const view = new DataView(data);
+          // 兼容 ArrayBuffer / Uint8Array / Buffer
+          const rawBuffer = data instanceof ArrayBuffer ? data : data.buffer;
+          const view = new DataView(rawBuffer);
           const headerLen = view.getUint16(0);
           // 音频数据从 offset 2 + headerLen 开始
-          const audioData = data.slice(2 + headerLen);
+          const audioData = rawBuffer.slice(2 + headerLen);
           if (audioData.byteLength > 0) {
             audioChunks.push(audioData);
           }
