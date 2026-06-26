@@ -182,6 +182,195 @@ function deleteCharacter(avatarUrl) {
 }
 
 /**
+ * 导出角色卡为 JSON 数据
+ * 从服务端获取角色详情后打包为标准 PNG 角色卡格式
+ *
+ * @param {object} character - 角色对象
+ * @returns {Promise<object>} 角色卡 JSON 数据
+ */
+function exportCharacter(character) {
+  // 构建标准角色卡 JSON
+  const card = {
+    name: character.name || '',
+    description: character.description || '',
+    personality: character.personality || '',
+    scenario: character.scenario || '',
+    first_mes: character.first_mes || character.greeting || '',
+    mes_example: character.mes_example || '',
+    creator_notes: character.creator_notes || '',
+    system_prompt: character.system_prompt || '',
+    tags: character.tags || [],
+    creator: character.creator || '',
+    character_version: character.character_version || '1.0'
+  };
+  return Promise.resolve(card);
+}
+
+/**
+ * 将角色卡 JSON 导出为 PNG 文件（在 PNG 中嵌入 JSON）
+ * 下载原始头像 PNG，将角色数据写入 tEXt chunk
+ *
+ * @param {object} character - 角色对象
+ * @returns {Promise<string>} 本地临时文件路径
+ */
+async function exportCharacterAsPng(character) {
+  const cardJson = await exportCharacter(character);
+  const jsonStr = JSON.stringify(cardJson);
+
+  // 尝试下载原始头像 PNG
+  let pngData = null;
+  if (character.avatar) {
+    try {
+      const fullUrl = getCharacterAvatarUrl(character.avatar);
+      const g = getApp().globalData;
+      const header = { 'Accept': 'image/*' };
+      if (g.csrfToken) header['X-CSRF-Token'] = g.csrfToken;
+      if (g.sessionCookies) header['Cookie'] = g.sessionCookies;
+
+      pngData = await new Promise((resolve, reject) => {
+        wx.request({
+          url: fullUrl,
+          method: 'GET',
+          responseType: 'arraybuffer',
+          header,
+          timeout: 20000,
+          success(res) {
+            if (res.statusCode === 200 && res.data) resolve(res.data);
+            else reject(new Error('HTTP ' + res.statusCode));
+          },
+          fail(err) { reject(new Error(err.errMsg)); }
+        });
+      });
+    } catch (e) {
+      console.warn('下载头像失败，使用纯 JSON 导出:', e.message);
+    }
+  }
+
+  if (pngData) {
+    // 将 JSON 嵌入 PNG 的 tEXt chunk
+    const embedded = _embedJsonInPng(pngData, 'chara', btoa(unescape(encodeURIComponent(jsonStr))));
+    const tmpPath = `${wx.env.USER_DATA_PATH}/export_${Date.now()}.png`;
+    const fs = wx.getFileSystemManager();
+    return new Promise((resolve, reject) => {
+      fs.writeFile({
+        filePath: tmpPath,
+        data: embedded,
+        encoding: 'binary',
+        success() { resolve(tmpPath); },
+        fail(err) { reject(new Error('写入文件失败')); }
+      });
+    });
+  }
+
+  // 无头像时导出为纯 JSON
+  const tmpPath = `${wx.env.USER_DATA_PATH}/export_${Date.now()}.json`;
+  const fs = wx.getFileSystemManager();
+  return new Promise((resolve, reject) => {
+    fs.writeFile({
+      filePath: tmpPath,
+      data: jsonStr,
+      encoding: 'utf8',
+      success() { resolve(tmpPath); },
+      fail(err) { reject(new Error('写入文件失败')); }
+    });
+  });
+}
+
+/**
+ * 在 PNG 文件中嵌入 JSON 数据（写入 tEXt chunk）
+ * 使用 'chara' 作为 keyword，与 SillyTavern 标准一致
+ */
+function _embedJsonInPng(pngBuffer, keyword, base64Data) {
+  const src = new Uint8Array(pngBuffer);
+  const chunks = [];
+
+  // PNG 签名（8 bytes）
+  chunks.push(src.slice(0, 8));
+
+  let pos = 8;
+  let inserted = false;
+
+  while (pos < src.length) {
+    const length = (src[pos] << 24) | (src[pos+1] << 16) | (src[pos+2] << 8) | src[pos+3];
+    const type = String.fromCharCode(src[pos+4], src[pos+5], src[pos+6], src[pos+7]);
+    const dataStart = pos + 8;
+    const dataEnd = dataStart + length;
+    const crcEnd = dataEnd + 4;
+
+    // 在 IEND 之前插入 tEXt chunk
+    if (type === 'IEND' && !inserted) {
+      const textChunk = _buildPngTextChunk(keyword, base64Data);
+      chunks.push(new Uint8Array(textChunk));
+      inserted = true;
+    }
+
+    chunks.push(src.slice(pos, crcEnd));
+    pos = crcEnd;
+  }
+
+  // 合并所有 chunk
+  let totalLen = 0;
+  for (const c of chunks) totalLen += c.length;
+  const result = new Uint8Array(totalLen);
+  let offset = 0;
+  for (const c of chunks) {
+    result.set(c, offset);
+    offset += c.length;
+  }
+  return result.buffer;
+}
+
+/** 构建 PNG tEXt chunk */
+function _buildPngTextChunk(keyword, text) {
+  const keyBytes = [];
+  for (let i = 0; i < keyword.length; i++) keyBytes.push(keyword.charCodeAt(i));
+  keyBytes.push(0); // null separator
+
+  const textBytes = [];
+  for (let i = 0; i < text.length; i++) textBytes.push(text.charCodeAt(i));
+
+  const dataLen = keyBytes.length + textBytes.length;
+  const chunk = new Uint8Array(12 + dataLen);
+
+  // Length (4 bytes)
+  chunk[0] = (dataLen >> 24) & 0xFF;
+  chunk[1] = (dataLen >> 16) & 0xFF;
+  chunk[2] = (dataLen >> 8) & 0xFF;
+  chunk[3] = dataLen & 0xFF;
+
+  // Type: tEXt (4 bytes)
+  chunk[4] = 0x74; // t
+  chunk[5] = 0x45; // E
+  chunk[6] = 0x58; // X
+  chunk[7] = 0x74; // t
+
+  // Data
+  chunk.set(keyBytes, 8);
+  chunk.set(textBytes, 8 + keyBytes.length);
+
+  // CRC32 (over type + data)
+  const crc = _crc32(chunk.slice(4, 8 + dataLen));
+  chunk[8 + dataLen] = (crc >> 24) & 0xFF;
+  chunk[9 + dataLen] = (crc >> 16) & 0xFF;
+  chunk[10 + dataLen] = (crc >> 8) & 0xFF;
+  chunk[11 + dataLen] = crc & 0xFF;
+
+  return chunk;
+}
+
+/** CRC32 实现 */
+function _crc32(data) {
+  let crc = 0xFFFFFFFF;
+  for (let i = 0; i < data.length; i++) {
+    crc ^= data[i];
+    for (let j = 0; j < 8; j++) {
+      crc = (crc >>> 1) ^ (crc & 1 ? 0xEDB88320 : 0);
+    }
+  }
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+/**
  * 获取角色聊天列表
  * POST /api/characters/chats
  */
@@ -282,6 +471,12 @@ const _CHAT_COMPLETION_SOURCE_MAP = {
  *
  * 必须发送 chat_completion_source，否则端点无法路由到正确的 AI 后端，会返回 400。
  * 不发送 char 字段——SillyTavern 服务端已加载角色，generate 端点不使用此字段。
+ *
+ * @param {Array} history - 历史消息
+ * @param {string} userMessage - 用户消息
+ * @param {object} character - 角色对象（当前未使用，保留接口兼容）
+ * @param {object} overrideParams - 可选覆盖参数
+ * @returns {Promise<string>} AI 回复文本
  */
 async function sendMessage(history, userMessage, character, overrideParams) {
   const messages = [];
@@ -630,6 +825,161 @@ function saveServerApiConfig(apiType, config) {
   });
 }
 
+// ============================================================
+// AI 流式生成接口
+// ============================================================
+
+/**
+ * 发送消息并流式获取 AI 回复（SSE / chunked）
+ * POST /api/backends/chat-completions/generate
+ *
+ * @param {Array} history - 历史消息
+ * @param {string} userMessage - 用户消息
+ * @param {object} character - 角色对象
+ * @param {function} onChunk - 收到增量文本时回调 onChunk(deltaText, fullText)
+ * @param {object} overrideParams - 可选覆盖参数
+ * @returns {Promise<string>} 完整回复文本
+ */
+async function sendMessageStream(history, userMessage, character, onChunk, overrideParams) {
+  const messages = [];
+
+  if (history && history.length > 0) {
+    for (const m of history) {
+      if (m.role === 'system') continue;
+      messages.push({
+        role: m.role === 'character' ? 'assistant' : m.role,
+        content: m.content,
+        ...(m.name ? { name: m.name } : {})
+      });
+    }
+  }
+
+  messages.push({ role: 'user', content: userMessage });
+
+  const body = { messages, stream: true };
+
+  // 获取 AI 后端配置
+  let settings = getApp().globalData._cachedSettings;
+  if (!settings) {
+    try {
+      settings = await getServerSettings();
+    } catch (e) {
+      console.warn('[sendMessageStream] 获取设置失败，使用默认 openai:', e.message);
+      settings = {};
+    }
+  }
+
+  const mainApi = settings.main_api || 'openai';
+  body.chat_completion_source = _CHAT_COMPLETION_SOURCE_MAP[mainApi] || 'openai';
+
+  if (mainApi === 'openai' && settings.openai_url) {
+    body.reverse_proxy = settings.openai_url;
+    if (settings._apiKey) {
+      body.proxy_password = settings._apiKey;
+    }
+  }
+  if (mainApi === 'chat-completions' && settings.chat_completion_url) {
+    body.custom_url = settings.chat_completion_url;
+  }
+
+  if (settings.openai_model && mainApi === 'openai') {
+    body.model = settings.openai_model;
+  } else if (settings.chat_completion_model && mainApi === 'chat-completions') {
+    body.model = settings.chat_completion_model;
+  } else if (settings.claude_model && mainApi === 'claude') {
+    body.model = settings.claude_model;
+  }
+
+  if (overrideParams) Object.assign(body, overrideParams);
+
+  console.log('[sendMessageStream] 开始流式请求');
+
+  const g = getApp().globalData;
+  const fullUrl = `${g.serverUrl}/api/backends/chat-completions/generate`;
+
+  const header = {
+    'Content-Type': 'application/json'
+  };
+  if (g.csrfToken) header['X-CSRF-Token'] = g.csrfToken;
+  if (g.sessionCookies) header['Cookie'] = g.sessionCookies;
+
+  return new Promise((resolve, reject) => {
+    let fullText = '';
+    let settled = false;
+
+    const reqTask = wx.request({
+      url: fullUrl,
+      method: 'POST',
+      data: body,
+      header,
+      timeout: 120000,
+      enableChunked: true,
+      success(res) {
+        if (settled) return;
+        settled = true;
+        // 非流式回退：服务端可能忽略 stream 参数直接返回完整响应
+        if (res.statusCode === 200 && res.data) {
+          const data = typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
+          if (!fullText) {
+            // 没收到任何 chunk，从完整响应中提取
+            if (data.choices && data.choices.length > 0) {
+              const choice = data.choices[0];
+              fullText = choice.message?.content || choice.text || '';
+            } else if (data.message) {
+              fullText = data.message;
+            }
+          }
+          resolve(fullText || '（无回复）');
+        } else if (res.statusCode === 401) {
+          reject(new Error('会话已过期，请重新登录'));
+        } else {
+          reject(new Error(`请求失败: HTTP ${res.statusCode}`));
+        }
+      },
+      fail(err) {
+        if (settled) return;
+        settled = true;
+        reject(new Error(err.errMsg || '网络请求失败'));
+      }
+    });
+
+    // 监听 chunked 数据
+    reqTask.onChunkReceived(function(res) {
+      try {
+        const chunk = new TextDecoder().decode(res.data);
+        // 解析 SSE 格式：data: {...}\n\n
+        const lines = chunk.split('\n');
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const payload = line.slice(6).trim();
+          if (payload === '[DONE]') continue;
+          try {
+            const json = JSON.parse(payload);
+            // OpenAI 格式
+            if (json.choices && json.choices.length > 0) {
+              const delta = json.choices[0].delta;
+              if (delta && delta.content) {
+                fullText += delta.content;
+                if (onChunk) onChunk(delta.content, fullText);
+              }
+              // 也可能在 text 字段（旧格式）
+              const text = json.choices[0].text;
+              if (text) {
+                fullText += text;
+                if (onChunk) onChunk(text, fullText);
+              }
+            }
+          } catch (e) {
+            // 不完整的 JSON chunk，忽略
+          }
+        }
+      } catch (e) {
+        console.warn('[sendMessageStream] chunk 解析错误:', e.message);
+      }
+    });
+  });
+}
+
 module.exports = {
   // 连接
   checkConnection,
@@ -645,6 +995,8 @@ module.exports = {
   getCharacterAvatarUrl,
   downloadAvatar,
   deleteCharacter,
+  exportCharacter,
+  exportCharacterAsPng,
   // 聊天
   getChatList,
   getChatMessages,
@@ -652,6 +1004,7 @@ module.exports = {
   deleteChat,
   // AI 生成
   sendMessage,
+  sendMessageStream,
   // 后端
   getBackends,
   setBackend,

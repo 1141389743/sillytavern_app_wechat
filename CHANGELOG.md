@@ -4,6 +4,32 @@
 
 ---
 
+## [v2.0.0] - 2026-06-26
+
+### 新增
+- **🔴 流式输出**：AI 回复实时逐字显示，支持「停止生成」按钮。服务端模式使用 `enableChunked` + `onChunkReceived`，直连模式同时支持 OpenAI 兼容和 Anthropic SSE 格式
+- **🟡 重新生成**：消息列表底部显示「重新生成」按钮，可重新生成最后一条 AI 回复
+- **🟡 编辑消息**：长按任意消息弹出菜单（编辑/复制/删除）。编辑用户消息会自动触发重新生成，编辑助手消息仅修改内容
+- **🟢 Markdown 渲染**：助手消息支持 `**粗体**`、`*斜体*`、`` `行内代码` ``、` ```代码块``` `、`> 引用`、`~~删除线~~`，使用 rich-text 组件渲染
+- **🟢 角色卡导出**：长按角色卡片新增「导出角色卡」选项，可导出为 PNG（嵌入 JSON 到 tEXt chunk）或纯 JSON 文件，通过 `wx.shareFileMessage` 分享
+- **🟢 直连模式聊天本地持久化**：直连模式下聊天记录自动保存到 `wx.setStorageSync`，退出重进不丢失
+- **🟢 头像跨会话缓存**：角色头像路径持久化存储，每次进入角色列表不再重复下载，刷新时自动验证文件有效性
+- **🟢 离线检测**：全局网络状态监听，断网时提示用户，发送消息前检查网络可用性
+- **🔵 消息删除**：长按消息菜单新增「删除」选项
+
+### 安全修复
+- **退出清空 API Key**：`clearSession()` 现在会清空 `globalData.directApi.apiKey` 和 `_cachedSettings._apiKey`，防止设备切换时内存中的 Key 泄露
+
+### 变更
+- 版本号升级至 v2.0.0
+- 会话切换时清空 Markdown 渲染缓存
+- 系统消息（错误提示）独立样式，居中显示红色背景
+- 输入区域在编辑模式下自动隐藏
+
+**涉及文件**：`app.js`、`app.json`、`services/sillytavern.js`、`services/direct_api.js`、`pages/chat/chat.js`、`pages/chat/chat.wxml`、`pages/chat/chat.wxss`、`pages/characters/characters.js`、`pages/characters/characters.wxml`、`utils/markdown.js`（新增）
+
+---
+
 ## [v1.3.4] - 2026-06-20
 
 ### 安全修复

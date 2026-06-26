@@ -31,7 +31,38 @@ Page({
   // 本地头像缓存 { avatarUrl: localPath }
   _avatarCache: {},
 
+  /** 从持久化缓存加载头像路径映射 */
+  _loadAvatarCache() {
+    try {
+      const cached = wx.getStorageSync('avatar_cache');
+      if (cached && typeof cached === 'object') {
+        // 验证缓存的文件是否仍然存在
+        const fs = wx.getFileSystemManager();
+        const valid = {};
+        for (const key in cached) {
+          try {
+            fs.accessSync(cached[key]);
+            valid[key] = cached[key];
+          } catch (e) {
+            // 文件已失效，跳过
+          }
+        }
+        this._avatarCache = valid;
+      }
+    } catch (e) {
+      this._avatarCache = {};
+    }
+  },
+
+  /** 持久化头像缓存 */
+  _saveAvatarCache() {
+    try {
+      wx.setStorageSync('avatar_cache', this._avatarCache);
+    } catch (e) { /* ignore */ }
+  },
+
   onLoad() {
+    this._loadAvatarCache();
     this._loadData();
   },
 
@@ -139,7 +170,7 @@ Page({
   async _downloadSingleAvatar(character, dataIndex) {
     const avatarKey = character.avatar;
 
-    // 检查缓存
+    // 检查内存缓存
     if (this._avatarCache[avatarKey]) {
       this.setData({ [`characters[${dataIndex}]._avatarPath`]: this._avatarCache[avatarKey] });
       this._updateFilteredChar(dataIndex, '_avatarPath', this._avatarCache[avatarKey]);
@@ -152,6 +183,9 @@ Page({
 
       this.setData({ [`characters[${dataIndex}]._avatarPath`]: localPath });
       this._updateFilteredChar(dataIndex, '_avatarPath', localPath);
+
+      // 持久化缓存（每下载一个就存一次，批量下载时只在最后一个存）
+      this._saveAvatarCache();
     } catch (e) {
       this.setData({ [`characters[${dataIndex}]._avatarFailed`]: true });
       this._updateFilteredChar(dataIndex, '_avatarFailed', true);
@@ -251,6 +285,34 @@ Page({
     });
   },
 
+  async onExportCharacter() {
+    const char = this.data.selectedCharForMenu;
+    this.hideCharMenu();
+    if (!char) return;
+
+    wx.showLoading({ title: '导出中...' });
+    try {
+      const filePath = await st.exportCharacterAsPng(char);
+      wx.hideLoading();
+
+      // 分享文件
+      wx.shareFileMessage({
+        filePath,
+        fileName: `${char.name}_角色卡.png`,
+        success() {
+          wx.showToast({ title: '导出成功', icon: 'success' });
+        },
+        fail(err) {
+          // 分享被取消或失败，保留文件
+          wx.showToast({ title: '已保存到本地', icon: 'none' });
+        }
+      });
+    } catch (err) {
+      wx.hideLoading();
+      wx.showToast({ title: '导出失败: ' + err.message, icon: 'none' });
+    }
+  },
+
   onAvatarError(e) {
     const index = e.currentTarget.dataset.index;
     const key = `filteredChars[${index}]._avatarFailed`;
@@ -261,7 +323,8 @@ Page({
 
   async onRefresh() {
     this.setData({ isRefreshing: true });
-    this._avatarCache = {}; // 清空头像缓存
+    this._avatarCache = {}; // 清空内存缓存
+    this._saveAvatarCache(); // 清空持久化缓存
     await this._loadCharacters();
   },
 

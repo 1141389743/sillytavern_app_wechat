@@ -35,6 +35,7 @@ App({
   onLaunch() {
     this._loadConfig();
     this._cleanOldTempFiles();
+    this._setupNetworkListener();
   },
 
   /** 从本地存储加载配置 */
@@ -93,5 +94,41 @@ App({
     this.globalData.characters = [];
     this.globalData.currentCharacter = null;
     this.globalData.messages = [];
+
+    // 清空内存中的 API Key，防止设备切换时泄露
+    if (this.globalData.directApi) {
+      this.globalData.directApi.apiKey = '';
+    }
+    if (this.globalData._cachedSettings) {
+      this.globalData._cachedSettings._apiKey = '';
+    }
+  },
+
+  /** 监听网络状态变化 */
+  _setupNetworkListener() {
+    wx.onNetworkStatusChange((res) => {
+      const wasConnected = this.globalData._isConnected;
+      this.globalData._isConnected = res.isConnected;
+
+      if (!res.isConnected && wasConnected) {
+        // 网络断开
+        wx.showToast({ title: '网络已断开', icon: 'none', duration: 3000 });
+      } else if (res.isConnected && !wasConnected) {
+        // 网络恢复
+        wx.showToast({ title: '网络已恢复', icon: 'success', duration: 2000 });
+      }
+    });
+
+    // 初始检测
+    wx.getNetworkType({
+      success: (res) => {
+        this.globalData._isConnected = res.networkType !== 'none';
+      }
+    });
+  },
+
+  /** 检查网络是否可用 */
+  isNetworkAvailable() {
+    return this.globalData._isConnected !== false;
   }
 });

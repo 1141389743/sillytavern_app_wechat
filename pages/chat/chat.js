@@ -6,8 +6,8 @@
 const app = getApp();
 const st = require('../../services/sillytavern');
 const directApi = require('../../services/direct_api');
-const { formatTime, generateId } = require('../../utils/util');
-const { stripPngSuffix } = require('../../utils/util');
+const { formatTime, generateId, stripPngSuffix } = require('../../utils/util');
+const { markdownToWxml } = require('../../utils/markdown');
 
 Page({
   data: {
@@ -35,8 +35,21 @@ Page({
     // 角色信息弹窗
     showCharInfo: false,
 
+    // 消息长按菜单
+    showMsgMenu: false,
+    menuMessageId: '',
+    menuMessageContent: '',
+    menuMessageRole: '',
+
     // 下拉刷新
     isRefreshing: false,
+
+    // 流式状态
+    isStreaming: false,
+
+    // 消息编辑
+    editingMessageId: null,
+    editingText: '',
 
     // 聊天文件名（保存用）
     currentChatFile: null,
@@ -44,6 +57,21 @@ Page({
     // 已加载的聊天会话索引
     _chatSessionIndex: 0,
     _chatSessions: []
+  },
+
+  // 流式文本累积器
+  _streamText: '',
+  _streamAbort: null,
+  // Markdown 渲染缓存
+  _mdCache: {},
+
+  /** 渲染消息的 Markdown 内容为 WXML */
+  _renderMessage(content, role) {
+    if (!content || role === 'user') return null; // 用户消息不渲染 Markdown
+    if (this._mdCache[content]) return this._mdCache[content];
+    const wxml = markdownToWxml(content);
+    this._mdCache[content] = wxml;
+    return wxml;
   },
 
   onLoad() {
@@ -74,8 +102,17 @@ Page({
   },
 
   onUnload() {
+    // 中止进行中的流式请求
+    if (this._streamAbort) {
+      this._streamAbort();
+      this._streamAbort = null;
+    }
     // 返回时清除当前角色
     app.globalData.currentCharacter = null;
+  },
+
+  onHide() {
+    // 页面隐藏时不中止流式，允许后台继续
   },
 
   // === 输入 ===
@@ -98,6 +135,12 @@ Page({
     const text = this.data.inputText.trim();
     if (!text || this.data.isSending) return;
 
+    // 网络检查
+    if (!app.isNetworkAvailable()) {
+      wx.showToast({ title: '网络已断开，请检查连接', icon: 'none' });
+      return;
+    }
+
     const g = app.globalData;
     const character = g.currentCharacter;
     if (!character) return;
@@ -119,6 +162,7 @@ Page({
       inputText: '',
       canSend: false,
       isSending: true,
+      isStreaming: true,
       scrollToId: '',
       inputFocused: false
     });
@@ -128,58 +172,323 @@ Page({
     }, 50);
     this._scrollToBottom();
 
+    await this._generateReply(messages, character);
+  },
+
+  /**
+   * 核心生成逻辑（流式），被 onSend 和 onRegenerate 共用
+   */
+  async _generateReply(messages, character) {
+    const g = app.globalData;
+    const history = messages.slice(0, -1);
+    const lastUserMsg = messages[messages.length - 1];
+
+    // 先添加一个空的 assistant 消息作为流式占位
+    const streamingMsgId = generateId();
+    const streamingMsg = {
+      id: streamingMsgId,
+      role: 'assistant',
+      content: '',
+      name: character.name,
+      timestamp: Date.now(),
+      _time: formatTime(new Date()),
+      _showAvatar: true,
+      _isStreaming: true
+    };
+
+    const messagesWithPlaceholder = [...messages, streamingMsg];
+    this.setData({ messages: messagesWithPlaceholder });
+    this._scrollToBottom();
+
+    // 流式回调：逐步更新消息内容
+    let chunkBuffer = '';
+    let updateTimer = null;
+    const updateStreamingText = () => {
+      if (!chunkBuffer) return;
+      const idx = this.data.messages.findIndex(m => m.id === streamingMsgId);
+      if (idx >= 0) {
+        this.setData({
+          [`messages[${idx}].content`]: this._streamText
+        });
+        this._scrollToBottom();
+      }
+      chunkBuffer = '';
+    };
+
+    const onChunk = (delta, full) => {
+      this._streamText = full;
+      chunkBuffer += delta;
+      // 节流：每 100ms 更新一次 UI，避免 setData 过于频繁
+      if (!updateTimer) {
+        updateTimer = setTimeout(() => {
+          updateStreamingText();
+          updateTimer = null;
+        }, 100);
+      }
+    };
+
+    this._streamText = '';
+
     try {
-      const history = messages.slice(0, -1); // 不含刚添加的用户消息
       let reply;
 
       if (this.data.useDirectApi && g.directApi.enabled) {
-        // 直连 LLM API
+        // 直连模式流式
         const systemPrompt = directApi.buildCharacterPrompt(character);
-        reply = await directApi.sendMessage(
+        reply = await directApi.sendMessageStream(
           g.directApi,
           history,
-          text,
-          systemPrompt
+          lastUserMsg.content,
+          systemPrompt,
+          onChunk
         );
       } else if (g.serverUrl) {
-        // 走 SillyTavern 后端
-        const charData = character;
-        reply = await st.sendMessage(history, text, charData);
+        // SillyTavern 后端流式
+        reply = await st.sendMessageStream(
+          history,
+          lastUserMsg.content,
+          character,
+          onChunk
+        );
       } else {
         throw new Error('未配置任何 AI 后端');
       }
 
-      // 添加助手回复
-      const assistantMsg = {
-        id: generateId(),
-        role: 'assistant',
-        content: reply || '（无回复）',
-        name: character.name,
-        timestamp: Date.now(),
-        _time: formatTime(new Date()),
-        _showAvatar: true
-      };
+      // 流式结束，刷新最后一帧确保完整
+      if (updateTimer) {
+        clearTimeout(updateTimer);
+        updateTimer = null;
+      }
+      updateStreamingText();
 
-      const updatedMessages = [...this.data.messages, assistantMsg];
-      this.setData({ messages: updatedMessages });
-      this._scrollToBottom();
+      // 标记流式结束
+      const finalIdx = this.data.messages.findIndex(m => m.id === streamingMsgId);
+      if (finalIdx >= 0) {
+        const finalContent = reply || this._streamText || '（无回复）';
+        this.setData({
+          [`messages[${finalIdx}].content`]: finalContent,
+          [`messages[${finalIdx}]._isStreaming`]: false,
+          [`messages[${finalIdx}]._mdWxml`]: this._renderMessage(finalContent, 'assistant')
+        });
+      }
 
-      // 自动保存聊天到 SillyTavern 服务端
-      if (!this.data.useDirectApi) {
-        this._saveCurrentChat(updatedMessages);
+      // 自动保存聊天
+      const finalMessages = this.data.messages.map(m =>
+        m.id === streamingMsgId ? { ...m, content: reply || this._streamText || '（无回复）', _isStreaming: false } : m
+      );
+      if (this.data.useDirectApi) {
+        this._saveLocalChat(finalMessages);
+      } else {
+        this._saveCurrentChat(finalMessages);
       }
     } catch (err) {
-      const errMsg = {
-        id: generateId(),
-        role: 'system',
-        content: `⚠️ 回复失败: ${err.message}`,
+      if (updateTimer) {
+        clearTimeout(updateTimer);
+        updateTimer = null;
+      }
+      // 流式失败：如果有部分文本，保留；否则显示错误
+      const errIdx = this.data.messages.findIndex(m => m.id === streamingMsgId);
+      if (errIdx >= 0) {
+        if (this._streamText) {
+          // 有部分内容，保留并标记错误
+          this.setData({
+            [`messages[${errIdx}].content`]: this._streamText + `\n\n⚠️ 生成中断: ${err.message}`,
+            [`messages[${errIdx}]._isStreaming`]: false
+          });
+        } else {
+          // 完全无内容，替换成错误消息
+          const errMsg = {
+            id: streamingMsgId,
+            role: 'system',
+            content: `⚠️ 回复失败: ${err.message}`,
+            timestamp: Date.now(),
+            _time: formatTime(new Date())
+          };
+          const updated = [...this.data.messages];
+          updated[errIdx] = errMsg;
+          this.setData({ messages: updated });
+        }
+      }
+    } finally {
+      this.setData({ isSending: false, isStreaming: false });
+      this._streamText = '';
+      this._streamAbort = null;
+      this._scrollToBottom();
+    }
+  },
+
+  // === 停止生成 ===
+
+  onStopStreaming() {
+    if (this._streamAbort) {
+      this._streamAbort();
+    }
+    this.setData({ isSending: false, isStreaming: false });
+  },
+
+  // === 重新生成 ===
+
+  async onRegenerate() {
+    if (this.data.isSending) return;
+
+    const g = app.globalData;
+    const character = g.currentCharacter;
+    if (!character) return;
+
+    const messages = this.data.messages;
+    if (messages.length === 0) return;
+
+    // 找到最后一条 assistant 消息并删除
+    let lastAssistantIdx = -1;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'assistant') {
+        lastAssistantIdx = i;
+        break;
+      }
+    }
+
+    if (lastAssistantIdx < 0) return;
+
+    // 保留到最后一条 user 消息之前（包含 user 消息）
+    const trimmed = messages.slice(0, lastAssistantIdx);
+    // 找到最后一条 user 消息
+    let lastUserIdx = -1;
+    for (let i = trimmed.length - 1; i >= 0; i--) {
+      if (trimmed[i].role === 'user') {
+        lastUserIdx = i;
+        break;
+      }
+    }
+
+    if (lastUserIdx < 0) return;
+
+    const newMessages = trimmed.slice(0, lastUserIdx + 1);
+    this.setData({
+      messages: newMessages,
+      isSending: true,
+      isStreaming: true
+    });
+
+    await this._generateReply(newMessages, character);
+  },
+
+  // === 编辑消息 ===
+
+  onStartEdit(e) {
+    const { id, content } = e.currentTarget.dataset;
+    this.setData({
+      editingMessageId: id,
+      editingText: content
+    });
+  },
+
+  onEditInput(e) {
+    this.setData({ editingText: e.detail.value });
+  },
+
+  onCancelEdit() {
+    this.setData({ editingMessageId: null, editingText: '' });
+  },
+
+  async onSaveEdit() {
+    const { editingMessageId, editingText } = this.data;
+    if (!editingMessageId) return;
+
+    const newText = editingText.trim();
+    if (!newText) {
+      wx.showToast({ title: '内容不能为空', icon: 'none' });
+      return;
+    }
+
+    const idx = this.data.messages.findIndex(m => m.id === editingMessageId);
+    if (idx < 0) return;
+
+    const msg = this.data.messages[idx];
+
+    if (msg.role === 'user') {
+      // 编辑用户消息：更新内容，删除后续所有消息，重新生成
+      const newMessages = this.data.messages.slice(0, idx);
+      newMessages.push({
+        ...msg,
+        content: newText,
         timestamp: Date.now(),
         _time: formatTime(new Date())
-      };
-      this.setData({ messages: [...this.data.messages, errMsg] });
-      this._scrollToBottom();
-    } finally {
-      this.setData({ isSending: false });
+      });
+
+      this.setData({
+        messages: newMessages,
+        editingMessageId: null,
+        editingText: '',
+        isSending: true,
+        isStreaming: true
+      });
+
+      const g = app.globalData;
+      const character = g.currentCharacter;
+      if (character) {
+        await this._generateReply(newMessages, character);
+      }
+    } else if (msg.role === 'assistant') {
+      // 编辑助手消息：只更新内容，不触发重新生成
+      this.setData({
+        [`messages[${idx}].content`]: newText,
+        editingMessageId: null,
+        editingText: ''
+      });
+    }
+  },
+
+  // === 删除单条消息 ===
+
+  // === 消息长按菜单 ===
+
+  onLongPressMessage(e) {
+    const { id, content, role } = e.currentTarget.dataset;
+    this.setData({
+      showMsgMenu: true,
+      menuMessageId: id,
+      menuMessageContent: content,
+      menuMessageRole: role
+    });
+  },
+
+  hideMsgMenu() {
+    this.setData({ showMsgMenu: false, menuMessageId: '', menuMessageContent: '', menuMessageRole: '' });
+  },
+
+  onMenuEdit() {
+    const { menuMessageId, menuMessageContent } = this.data;
+    this.hideMsgMenu();
+    this.setData({
+      editingMessageId: menuMessageId,
+      editingText: menuMessageContent
+    });
+  },
+
+  onMenuCopy() {
+    const { menuMessageContent } = this.data;
+    this.hideMsgMenu();
+    wx.setClipboardData({
+      data: menuMessageContent,
+      success: () => {
+        wx.showToast({ title: '已复制', icon: 'success', duration: 1500 });
+      }
+    });
+  },
+
+  onMenuDelete() {
+    const { menuMessageId } = this.data;
+    this.hideMsgMenu();
+    if (!menuMessageId) return;
+
+    const idx = this.data.messages.findIndex(m => m.id === menuMessageId);
+    if (idx >= 0) {
+      const updated = [...this.data.messages];
+      updated.splice(idx, 1);
+      this.setData({ messages: updated });
+      if (this.data.useDirectApi) {
+        this._saveLocalChat(updated);
+      }
     }
   },
 
@@ -188,7 +497,16 @@ Page({
   async _loadChatHistory() {
     const g = app.globalData;
     const character = g.currentCharacter;
-    if (!character || !character.avatar) return;
+    if (!character) return;
+
+    // 直连模式：从本地存储加载
+    if (this.data.useDirectApi && g.directApi.enabled) {
+      this._loadLocalChat(character);
+      return;
+    }
+
+    // 服务端模式：从 SillyTavern 加载
+    if (!character.avatar) return;
 
     try {
       const avatarUrl = stripPngSuffix(character.avatar);
@@ -209,7 +527,8 @@ Page({
           name: character.name,
           timestamp: Date.now(),
           _time: formatTime(new Date()),
-          _showAvatar: true
+          _showAvatar: true,
+          _mdWxml: this._renderMessage(this.data.greeting, 'assistant')
         };
         this.setData({ messages: [greetingMsg] });
       }
@@ -219,11 +538,67 @@ Page({
     }
   },
 
+  /** 从本地存储加载直连模式聊天记录 */
+  _loadLocalChat(character) {
+    const key = `direct_chat_${character.name || character.avatar || 'unknown'}`;
+    const saved = wx.getStorageSync(key);
+
+    if (saved && Array.isArray(saved) && saved.length > 0) {
+      const messages = saved.map(m => ({
+        ...m,
+        _time: formatTime(new Date(m.timestamp)),
+        _mdWxml: this._renderMessage(m.content, m.role)
+      }));
+      this.setData({ messages });
+      this._scrollToBottom();
+    } else if (this.data.greeting) {
+      const greetingMsg = {
+        id: generateId(),
+        role: 'assistant',
+        content: this.data.greeting,
+        name: character.name,
+        timestamp: Date.now(),
+        _time: formatTime(new Date()),
+        _showAvatar: true,
+        _mdWxml: this._renderMessage(this.data.greeting, 'assistant')
+      };
+      this.setData({ messages: [greetingMsg] });
+    }
+  },
+
+  /** 保存直连模式聊天记录到本地 */
+  _saveLocalChat(messages) {
+    const g = app.globalData;
+    const character = g.currentCharacter;
+    if (!character) return;
+
+    const key = `direct_chat_${character.name || character.avatar || 'unknown'}`;
+    // 只保存必要字段，不保存 UI 状态
+    const toSave = messages
+      .filter(m => m.role !== 'system')
+      .map(m => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        name: m.name,
+        timestamp: m.timestamp
+      }));
+
+    try {
+      wx.setStorageSync(key, toSave);
+    } catch (e) {
+      console.warn('保存本地聊天失败:', e.message);
+    }
+  },
+
   /** 加载指定索引的聊天会话 */
   async _loadChatSession(index) {
     const g = app.globalData;
     const character = g.currentCharacter;
     if (!character || !character.avatar) return;
+
+    // 切换会话时清空 Markdown 缓存
+    this._mdCache = {};
 
     const chats = this._chatSessions;
     if (index >= chats.length) {
@@ -245,7 +620,8 @@ Page({
       name: m.name || '',
       timestamp: m.timestamp,
       _time: formatTime(new Date(m.timestamp)),
-      _showAvatar: m.role === 'assistant'
+      _showAvatar: m.role === 'assistant',
+      _mdWxml: this._renderMessage(m.content, m.role)
     }));
 
     const sessionLabel = chats.length > 1

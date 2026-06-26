@@ -121,7 +121,7 @@
 
   <!-- 长按提示 -->
   <view class="longpress-hint" wx:if="{{filteredChars.length > 0 && !showCharMenu && !showSettings}}">
-    <text class="hint-text">💡 长按角色卡片可编辑或删除</text>
+    <text class="hint-text">💡 长按角色卡片可编辑、导出或删除</text>
   </view>
 
   <!-- ═══ 角色操作弹窗 ═══ -->
@@ -134,6 +134,10 @@
       <view class="sheet-item" bindtap="onEditCharacter">
         <text class="sheet-icon">✏️</text>
         <text class="sheet-title">编辑角色</text>
+      </view>
+      <view class="sheet-item" bindtap="onExportCharacter">
+        <text class="sheet-icon">📤</text>
+        <text class="sheet-title">导出角色卡</text>
       </view>
       <view class="sheet-item" bindtap="onDeleteCharacter">
         <text class="sheet-icon">🗑️</text>

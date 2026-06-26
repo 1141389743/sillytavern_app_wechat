@@ -1,5 +1,6 @@
 <!--
   聊天页面 - 对应 Flutter chat_screen.dart
+  v2: 流式输出 + 重新生成 + 编辑消息
 -->
 <view class="page">
   <!-- 顶部角色信息 -->
@@ -14,7 +15,7 @@
     <view class="header-info">
       <text class="header-name">{{characterName}}</text>
       <text class="header-status {{isSending ? 'status-sending' : ''}}">
-        {{isSending ? '正在输入...' : (useDirectApi ? '直连: ' + directApiTypeName : '酒馆后端')}}
+        {{isStreaming ? '正在回复...' : isSending ? '正在输入...' : (useDirectApi ? '直连: ' + directApiTypeName : '酒馆后端')}}
       </text>
     </view>
     <view class="header-action" bindtap="onShowCharacterInfo">ℹ️</view>
@@ -57,36 +58,49 @@
       wx:for="{{messages}}"
       wx:key="id"
       id="msg-{{item.id}}"
-      class="msg-row {{item.role === 'user' ? 'msg-row-user' : 'msg-row-assistant'}}"
+      class="msg-row {{item.role === 'user' ? 'msg-row-user' : item.role === 'system' ? 'msg-row-system' : 'msg-row-assistant'}}"
     >
-      <!-- 角色头像（助手消息） -->
-      <view class="msg-avatar" wx:if="{{item.role === 'assistant' && item._showAvatar}}">
-        <text>{{characterName[0]}}</text>
+      <!-- 系统消息 -->
+      <view wx:if="{{item.role === 'system'}}" class="system-msg">
+        <text selectable>{{item.content}}</text>
       </view>
-      <view class="msg-avatar-space" wx:if="{{item.role === 'assistant' && !item._showAvatar}}"></view>
 
-      <view class="msg-bubble-wrap {{item.role === 'user' ? 'bubble-user' : 'bubble-assistant'}}">
-        <!-- 角色名 -->
-        <text class="msg-name" wx:if="{{item.role === 'assistant'}}">{{characterName}}</text>
-        <!-- 消息内容 -->
-        <view class="msg-content">
-          <text selectable>{{item.content}}</text>
+      <!-- 非系统消息 -->
+      <block wx:if="{{item.role !== 'system'}}">
+        <!-- 角色头像（助手消息） -->
+        <view class="msg-avatar" wx:if="{{item.role === 'assistant' && item._showAvatar}}">
+          <text>{{characterName[0]}}</text>
         </view>
-      </view>
+        <view class="msg-avatar-space" wx:if="{{item.role === 'assistant' && !item._showAvatar}}"></view>
 
-      <!-- 用户头像 -->
-      <view class="msg-avatar msg-avatar-user" wx:if="{{item.role === 'user'}}">
-        <text>我</text>
-      </view>
+        <view class="msg-bubble-wrap {{item.role === 'user' ? 'bubble-user' : 'bubble-assistant'}}">
+          <!-- 角色名 -->
+          <text class="msg-name" wx:if="{{item.role === 'assistant'}}">{{characterName}}</text>
+          <!-- 消息内容 -->
+          <view class="msg-content" bindlongpress="onLongPressMessage" data-id="{{item.id}}" data-content="{{item.content}}" data-role="{{item.role}}">
+            <!-- 助手消息用 rich-text 渲染 Markdown -->
+            <rich-text wx:if="{{item.role === 'assistant'}}" nodes="{{item._mdWxml || item.content}}" selectable bindlongpress="onLongPressMessage" data-id="{{item.id}}" data-content="{{item.content}}" data-role="{{item.role}}" />
+            <!-- 用户消息用纯文本 -->
+            <text wx:else selectable>{{item.content}}</text>
+            <!-- 流式光标 -->
+            <text wx:if="{{item._isStreaming}}" class="streaming-cursor">▊</text>
+          </view>
+        </view>
 
-      <!-- 时间 -->
-      <text class="msg-time {{item.role === 'user' ? 'time-right' : 'time-left'}}">
-        {{item._time}}
-      </text>
+        <!-- 用户头像 -->
+        <view class="msg-avatar msg-avatar-user" wx:if="{{item.role === 'user'}}">
+          <text>我</text>
+        </view>
+
+        <!-- 时间 -->
+        <text class="msg-time {{item.role === 'user' ? 'time-right' : 'time-left'}}">
+          {{item._time}}
+        </text>
+      </block>
     </view>
 
-    <!-- 发送中指示 -->
-    <view class="typing-indicator" wx:if="{{isSending}}">
+    <!-- 发送中指示（非流式模式时显示） -->
+    <view class="typing-indicator" wx:if="{{isSending && !isStreaming}}">
       <view class="typing-avatar">
         <text>{{characterName[0]}}</text>
       </view>
@@ -99,12 +113,65 @@
       </view>
     </view>
 
+    <!-- 底部操作栏：重新生成 + 停止 -->
+    <view class="bottom-actions" wx:if="{{messages.length > 0}}">
+      <view class="action-btn" wx:if="{{!isSending && messages.length >= 2}}" bindtap="onRegenerate">
+        <text class="action-icon">🔄</text>
+        <text class="action-text">重新生成</text>
+      </view>
+      <view class="action-btn action-btn-stop" wx:if="{{isStreaming}}" bindtap="onStopStreaming">
+        <text class="action-icon">⏹</text>
+        <text class="action-text">停止生成</text>
+      </view>
+    </view>
+
     <!-- 底部占位 -->
     <view id="msg-bottom" style="height:20rpx;"></view>
   </scroll-view>
 
+  <!-- 编辑消息浮层 -->
+  <view class="edit-overlay" wx:if="{{editingMessageId}}">
+    <view class="edit-header">
+      <text class="edit-label">编辑消息</text>
+      <view class="edit-close" bindtap="onCancelEdit">✕</view>
+    </view>
+    <view class="edit-body">
+      <textarea
+        class="edit-input"
+        value="{{editingText}}"
+        bindinput="onEditInput"
+        auto-height
+        maxlength="8000"
+        focus
+        show-confirm-bar="{{false}}"
+      />
+    </view>
+    <view class="edit-actions">
+      <button class="btn-cancel" bindtap="onCancelEdit">取消</button>
+      <button class="btn-save" bindtap="onSaveEdit">保存并重新生成</button>
+    </view>
+  </view>
+
+  <!-- 消息长按菜单 -->
+  <view class="msg-menu-mask" wx:if="{{showMsgMenu}}" bindtap="hideMsgMenu">
+    <view class="msg-menu" catchtap="">
+      <view class="msg-menu-item" bindtap="onMenuEdit">
+        <text class="menu-icon">✏️</text>
+        <text>编辑</text>
+      </view>
+      <view class="msg-menu-item" bindtap="onMenuCopy">
+        <text class="menu-icon">📋</text>
+        <text>复制</text>
+      </view>
+      <view class="msg-menu-item menu-item-danger" bindtap="onMenuDelete">
+        <text class="menu-icon">🗑️</text>
+        <text>删除</text>
+      </view>
+    </view>
+  </view>
+
   <!-- 输入区域 -->
-  <view class="input-area">
+  <view class="input-area" wx:if="{{!editingMessageId}}">
     <view class="input-wrap">
       <textarea
         class="msg-input"
