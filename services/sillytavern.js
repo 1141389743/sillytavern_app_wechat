@@ -949,19 +949,29 @@ async function sendMessageStream(history, userMessage, character, onChunk, overr
       success(res) {
         if (settled) return;
         settled = true;
-        // 非流式回退：服务端可能忽略 stream 参数直接返回完整响应
-        if (res.statusCode === 200 && res.data) {
-          const data = typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
-          if (!fullText) {
-            // 没收到任何 chunk，从完整响应中提取
-            if (data.choices && data.choices.length > 0) {
-              const choice = data.choices[0];
-              fullText = choice.message?.content || choice.text || '';
-            } else if (data.message) {
-              fullText = data.message;
+        if (res.statusCode === 200) {
+          // 流式模式：chunks 已通过 onChunkReceived 传递，fullText 可能已有内容
+          if (!fullText && res.data) {
+            // 非流式回退：服务端忽略 stream 参数直接返回完整响应
+            try {
+              const data = typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
+              if (data.choices && data.choices.length > 0) {
+                const choice = data.choices[0];
+                fullText = choice.message?.content || choice.text || '';
+              } else if (data.message) {
+                fullText = data.message;
+              }
+            } catch (e) {
+              console.warn('[sendMessageStream] 响应解析失败:', e.message);
             }
           }
-          resolve(fullText || '（无回复）');
+          if (fullText) {
+            resolve(fullText);
+          } else {
+            // 流式已有内容但 fullText 可能未同步，用 reject 标记异常但不影响已渲染的内容
+            console.warn('[sendMessageStream] HTTP 200 但无回复内容');
+            resolve('（无回复）');
+          }
         } else if (res.statusCode === 401) {
           reject(new Error('会话已过期，请重新登录'));
         } else {
