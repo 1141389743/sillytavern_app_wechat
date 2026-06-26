@@ -4,7 +4,7 @@
 <view class="page">
   <!-- 顶部搜索 + 状态 -->
   <view class="top-bar">
-    <view class="search-wrap">
+    <view class="search-wrap" wx:if="{{!isGroupSelectMode}}">
       <text class="search-icon">🔍</text>
       <input
         class="search-input"
@@ -15,7 +15,11 @@
       />
       <view class="search-clear" wx:if="{{searchQuery}}" bindtap="clearSearch">✕</view>
     </view>
-    <view class="status-btn" bindtap="onShowSettings">
+    <view class="group-select-info" wx:if="{{isGroupSelectMode}}">
+      <text class="group-select-title">👥 选择群聊角色</text>
+      <text class="group-select-count">已选 {{Object.keys(groupSelected).length}} 个</text>
+    </view>
+    <view class="status-btn" bindtap="onShowSettings" wx:if="{{!isGroupSelectMode}}">
       <text class="status-dot {{isConnected ? 'dot-green' : 'dot-red'}}"></text>
       <text class="status-label">{{isConnected ? '已连接' : '离线'}}</text>
     </view>
@@ -37,7 +41,7 @@
     refresher-triggered="{{isRefreshing}}"
   >
     <view
-      class="char-card"
+      class="char-card {{isGroupSelectMode ? 'char-card-select' : ''}} {{groupSelected[item.name] ? 'char-card-selected' : ''}}"
       wx:for="{{filteredChars}}"
       wx:key="name"
       bindtap="onTapCharacter"
@@ -45,6 +49,10 @@
       bindlongpress="onLongPressCharacter"
       data-char="{{item}}"
     >
+      <!-- 群聊选择勾选 -->
+      <view class="select-check" wx:if="{{isGroupSelectMode}}">
+        <text class="check-icon">{{groupSelected[item.name] ? '☑️' : '⬜'}}</text>
+      </view>
       <!-- 头像 -->
       <view class="char-avatar-wrap">
         <image
@@ -78,14 +86,29 @@
   </view>
 
   <!-- 底部按钮 -->
-  <view class="bottom-bar">
+  <view class="bottom-bar" wx:if="{{!isGroupSelectMode}}">
     <button class="btn-action btn-import" bindtap="onImport">
       <text class="btn-icon">📥</text>
       <text>导入</text>
     </button>
+    <button class="btn-action btn-group" bindtap="onToggleGroupSelect">
+      <text class="btn-icon">👥</text>
+      <text>群聊</text>
+    </button>
     <button class="btn-action btn-create" bindtap="onCreate">
       <text class="btn-icon">➕</text>
       <text>新建</text>
+    </button>
+  </view>
+
+  <!-- 群聊选择底部栏 -->
+  <view class="bottom-bar" wx:if="{{isGroupSelectMode}}">
+    <button class="btn-action btn-cancel-group" bindtap="onToggleGroupSelect">
+      <text>取消</text>
+    </button>
+    <button class="btn-action btn-start-group {{Object.keys(groupSelected).length >= 2 ? '' : 'btn-disabled'}}" bindtap="onStartGroupChat">
+      <text class="btn-icon">💬</text>
+      <text>开始群聊 ({{Object.keys(groupSelected).length}})</text>
     </button>
   </view>
 

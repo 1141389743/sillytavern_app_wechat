@@ -13,12 +13,15 @@
       {{characterName[0] || '?'}}
     </view>
     <view class="header-info">
-      <text class="header-name">{{characterName}}</text>
+      <text class="header-name">{{isGroupChat ? '👥 群聊' : characterName}}</text>
       <text class="header-status {{isSending ? 'status-sending' : ''}}">
-        {{isStreaming ? '正在回复...' : isSending ? '正在输入...' : (useDirectApi ? '直连: ' + directApiTypeName : '酒馆后端')}}
+        {{isStreaming ? '正在回复...' : isSending ? '正在输入...' : (isGroupChat ? groupMembers.length + ' 位角色' : (useDirectApi ? '直连: ' + directApiTypeName : '酒馆后端'))}}
       </text>
     </view>
-    <view class="header-action" bindtap="onShowCharacterInfo">ℹ️</view>
+    <view class="header-action" wx:if="{{isGroupChat}}" bindtap="onToggleGroupPanel">
+      <text>👥</text>
+    </view>
+    <view class="header-action" wx:else bindtap="onShowCharacterInfo">ℹ️</view>
   </view>
 
   <!-- 开场白横幅 -->
@@ -69,17 +72,41 @@
       <block wx:if="{{item.role !== 'system'}}">
         <!-- 角色头像（助手消息） -->
         <view class="msg-avatar" wx:if="{{item.role === 'assistant' && item._showAvatar}}">
-          <text>{{characterName[0]}}</text>
+          <!-- 群聊模式：根据消息 name 找对应成员头像 -->
+          <block wx:if="{{isGroupChat}}">
+            <image wx:if="{{item._avatarPath}}" src="{{item._avatarPath}}" mode="aspectFill" class="msg-avatar-img" />
+            <text wx:else>{{item._avatarLetter || item.name[0] || '?'}}</text>
+          </block>
+          <text wx:else>{{characterName[0]}}</text>
         </view>
         <view class="msg-avatar-space" wx:if="{{item.role === 'assistant' && !item._showAvatar}}"></view>
 
         <view class="msg-bubble-wrap {{item.role === 'user' ? 'bubble-user' : 'bubble-assistant'}}">
           <!-- 角色名 -->
-          <text class="msg-name" wx:if="{{item.role === 'assistant'}}">{{characterName}}</text>
+          <text class="msg-name" wx:if="{{item.role === 'assistant'}}">{{isGroupChat ? item.name : characterName}}</text>
           <!-- 消息内容 -->
           <view class="msg-content" bindlongpress="onLongPressMessage" data-id="{{item.id}}" data-content="{{item.content}}" data-role="{{item.role}}">
-            <!-- 助手消息用 rich-text 渲染 Markdown -->
-            <rich-text wx:if="{{item.role === 'assistant'}}" nodes="{{item._mdWxml || item.content}}" selectable bindlongpress="onLongPressMessage" data-id="{{item.id}}" data-content="{{item.content}}" data-role="{{item.role}}" />
+            <!-- 助手消息：文字+图片混合渲染 -->
+            <block wx:if="{{item.role === 'assistant'}}">
+              <block wx:for="{{item._blocks}}" wx:key="index" wx:for-item="block">
+                <!-- 文字块 -->
+                <rich-text wx:if="{{block.type === 'text'}}" nodes="{{block._wxml}}" selectable />
+                <!-- 图片块 -->
+                <image
+                  wx:if="{{block.type === 'image'}}"
+                  src="{{block.url}}"
+                  mode="widthFix"
+                  class="msg-image"
+                  bindtap="onPreviewImage"
+                  data-url="{{block.url}}"
+                  data-msg-id="{{item.id}}"
+                  show-menu-by-longpress
+                />
+              </block>
+              <!-- 兼容旧格式：无 _blocks 时回退 -->
+              <rich-text wx:if="{{!item._blocks && item._mdWxml}}" nodes="{{item._mdWxml}}" selectable />
+              <rich-text wx:if="{{!item._blocks && !item._mdWxml}}" nodes="{{item.content}}" selectable />
+            </block>
             <!-- 用户消息用纯文本 -->
             <text wx:else selectable>{{item.content}}</text>
             <!-- 流式光标 -->
@@ -198,6 +225,28 @@
       bindtap="onSend"
     >
       <text>{{isSending ? '⏳' : '📤'}}</text>
+    </view>
+  </view>
+
+  <!-- 群聊成员面板 -->
+  <view class="settings-mask" wx:if="{{showGroupPanel}}" bindtap="onToggleGroupPanel">
+    <view class="info-sheet" catchtap="">
+      <view class="sheet-handle"></view>
+      <text class="info-title">👥 群聊成员</text>
+      <view class="group-member-list">
+        <view class="group-member" wx:for="{{groupMembers}}" wx:key="name">
+          <view class="group-member-avatar">
+            <image wx:if="{{item._avatarPath}}" src="{{item._avatarPath}}" mode="aspectFill" class="group-member-img" />
+            <text wx:else>{{item._avatarLetter}}</text>
+          </view>
+          <view class="group-member-info">
+            <text class="group-member-name">{{item.name}}</text>
+            <text class="group-member-desc" wx:if="{{item.personality}}">{{item.personality}}</text>
+          </view>
+        </view>
+      </view>
+      <text class="group-hint">💡 输入 @名字 可指定角色回复</text>
+      <button class="btn-primary mt-24" bindtap="onToggleGroupPanel">知道了</button>
     </view>
   </view>
 

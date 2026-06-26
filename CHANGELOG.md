@@ -4,6 +4,23 @@
 
 ---
 
+## [v2.1.0] - 2026-06-26
+
+### 新增
+- **🔴 图片渲染**：助手消息支持 Markdown 图片语法 `![alt](url)` 和裸图片 URL 自动识别，聊天气泡内直接显示图片，点击可全屏预览（`wx.previewImage`）
+- **🟡 触觉反馈**：发送消息（中等振动）、长按菜单（重振动）、按钮点击（轻振动）、停止生成、编辑保存、复制、删除、朗读等交互场景均加入 `wx.vibrateShort` 振动反馈
+- **🟢 群聊/多角色**：角色列表新增「群聊」入口，可选择多个角色创建群聊。支持轮流回复（round-robin）和 @提及指定回复两种模式，群聊内每个角色显示独立头像和名称，顶部面板查看群成员列表
+
+### 变更
+- 版本号升级至 v2.1.0
+- Markdown 解析器新增 `parseContentBlocks` 和 `extractImageUrls`，支持文字+图片混合渲染
+- 聊天消息渲染从纯 `rich-text` 改为文字块+图片块分离渲染，兼容微信小程序 `rich-text` 不支持 `<img>` 的限制
+- 群聊模式聊天记录本地持久化，包含角色名关联
+
+**涉及文件**：`utils/markdown.js`、`pages/chat/chat.js`、`pages/chat/chat.wxml`、`pages/chat/chat.wxss`、`pages/characters/characters.js`、`pages/characters/characters.wxml`、`pages/characters/characters.wxss`
+
+---
+
 ## [v2.0.0] - 2026-06-26
 
 ### 新增
@@ -16,6 +33,7 @@
 - **🟢 头像跨会话缓存**：角色头像路径持久化存储，每次进入角色列表不再重复下载，刷新时自动验证文件有效性
 - **🟢 离线检测**：全局网络状态监听，断网时提示用户，发送消息前检查网络可用性
 - **🔵 消息删除**：长按消息菜单新增「删除」选项
+- **🟣 TTS 语音朗读**：长按消息菜单新增「朗读」选项，支持多音色选择，AI 情感分析自动调整语气（services/tts.js）
 
 ### 安全修复
 - **退出清空 API Key**：`clearSession()` 现在会清空 `globalData.directApi.apiKey` 和 `_cachedSettings._apiKey`，防止设备切换时内存中的 Key 泄露
@@ -211,6 +229,8 @@
 
 ---
 
+[v2.1.0]: https://github.com/1141389743/sillytavern_app_wechat/compare/v2.0.0...v2.1.0
+[v2.0.0]: https://github.com/1141389743/sillytavern_app_wechat/compare/v1.3.4...v2.0.0
 [v1.3.4]: https://github.com/1141389743/sillytavern_app_wechat/compare/v1.3.3...v1.3.4
 [v1.3.3]: https://github.com/1141389743/sillytavern_app_wechat/compare/v1.3.2...v1.3.3
 [v1.3.2]: https://github.com/1141389743/sillytavern_app_wechat/compare/v1.3.1...v1.3.2

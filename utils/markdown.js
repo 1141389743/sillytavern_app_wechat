@@ -9,9 +9,9 @@
  * - ```代码块```
  * - > 引用
  * - ~~删除线~~
+ * - ![alt](url) 图片
+ * - 裸图片 URL 自动识别
  * - 换行
- * 
- * 不支持：标题、列表、链接、图片、表格（聊天场景不需要）
  */
 
 /**
@@ -61,6 +61,20 @@ function parseMarkdown(text) {
     // 引用
     if (line.startsWith('> ')) {
       nodes.push({ type: 'quote', text: line.slice(2) });
+      continue;
+    }
+
+    // 图片语法 ![alt](url)
+    const imgMatch = line.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+    if (imgMatch) {
+      nodes.push({ type: 'image', url: imgMatch[2], alt: imgMatch[1] || '图片' });
+      continue;
+    }
+
+    // 裸图片 URL（以常见图片扩展名结尾）
+    const bareImgUrl = line.match(/^(https?:\/\/[^\s]+\.(png|jpe?g|gif|webp|svg|bmp|ico)(\?[^\s]*)?)$/i);
+    if (bareImgUrl) {
+      nodes.push({ type: 'image', url: bareImgUrl[1], alt: '图片' });
       continue;
     }
 
@@ -161,6 +175,9 @@ function markdownToWxml(text) {
         }
         wxml += `<div style="border-left:6rpx solid rgba(108,92,231,0.3);padding-left:16rpx;color:rgba(0,0,0,0.5);margin:8rpx 0;">${quoteInner}</div>`;
         break;
+      case 'image':
+        wxml += `<img src="${_escapeHtml(block.url)}" alt="${_escapeHtml(block.alt)}" style="max-width:100%;border-radius:12rpx;margin:8rpx 0;display:block;"/>`;
+        break;
       case 'inline':
         const nodes = inlineToRichNodes(block.text);
         for (const n of nodes) {
@@ -186,8 +203,64 @@ function _escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+/**
+ * 从文本中提取所有图片 URL（用于在消息下方独立渲染图片）
+ * 包括 ![alt](url) 和裸图片 URL
+ */
+function extractImageUrls(text) {
+  if (!text) return [];
+  const urls = [];
+  const regex = /!\[([^\]]*)\]\(([^)]+)\)|^(https?:\/\/[^\s]+\.(?:png|jpe?g|gif|webp|svg|bmp|ico)(?:\?[^\s]*)?)$/gim;
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    const url = match[2] || match[3];
+    if (url) urls.push(url);
+  }
+  return urls;
+}
+
+/**
+ * 从文本中提取所有富文本段落（文字+图片混合）
+ * 返回 [{type:'text', content:string}, {type:'image', url:string}]
+ */
+function parseContentBlocks(text) {
+  if (!text) return [];
+  const blocks = [];
+  const lines = text.split('\n');
+  let currentText = [];
+
+  const flushText = () => {
+    if (currentText.length > 0) {
+      blocks.push({ type: 'text', content: currentText.join('\n') });
+      currentText = [];
+    }
+  };
+
+  for (const line of lines) {
+    // ![alt](url)
+    const imgMatch = line.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+    if (imgMatch) {
+      flushText();
+      blocks.push({ type: 'image', url: imgMatch[2] });
+      continue;
+    }
+    // 裸图片 URL
+    const bareImg = line.match(/^(https?:\/\/[^\s]+\.(?:png|jpe?g|gif|webp|svg|bmp|ico)(?:\?[^\s]*)?)$/i);
+    if (bareImg) {
+      flushText();
+      blocks.push({ type: 'image', url: bareImg[1] });
+      continue;
+    }
+    currentText.push(line);
+  }
+  flushText();
+  return blocks;
+}
+
 module.exports = {
   parseMarkdown,
   inlineToRichNodes,
-  markdownToWxml
+  markdownToWxml,
+  extractImageUrls,
+  parseContentBlocks
 };

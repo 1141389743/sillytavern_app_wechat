@@ -25,7 +25,11 @@ Page({
 
     // 角色操作弹窗
     showCharMenu: false,
-    selectedCharForMenu: null
+    selectedCharForMenu: null,
+
+    // 群聊选择模式
+    isGroupSelectMode: false,
+    groupSelected: {} // { name: true } 记录选中状态
   },
 
   // 本地头像缓存 { avatarUrl: localPath }
@@ -234,9 +238,52 @@ Page({
     const character = this.data.filteredChars[index];
     if (!character) return;
 
+    // 群聊选择模式：切换选中状态
+    if (this.data.isGroupSelectMode) {
+      wx.vibrateShort({ type: 'light' });
+      const key = `groupSelected.${character.name}`;
+      const current = this.data.groupSelected[character.name];
+      this.setData({ [key]: !current });
+      return;
+    }
+
     app.globalData.currentCharacter = character;
     app.globalData.messages = [];
 
+    wx.navigateTo({ url: '/pages/chat/chat' });
+  },
+
+  // === 群聊 ===
+
+  onToggleGroupSelect() {
+    wx.vibrateShort({ type: 'medium' });
+    if (this.data.isGroupSelectMode) {
+      // 退出选择模式
+      this.setData({ isGroupSelectMode: false, groupSelected: {} });
+    } else {
+      // 进入选择模式
+      this.setData({ isGroupSelectMode: true, groupSelected: {} });
+    }
+  },
+
+  onStartGroupChat() {
+    const selected = this.data.groupSelected;
+    const members = this.data.characters.filter(c => selected[c.name]);
+
+    if (members.length < 2) {
+      wx.showToast({ title: '请至少选择 2 个角色', icon: 'none' });
+      return;
+    }
+
+    wx.vibrateShort({ type: 'heavy' });
+
+    // 第一个选中的作为主角色
+    app.globalData.currentCharacter = members[0];
+    app.globalData.groupMembers = members;
+    app.globalData.isGroupChat = true;
+    app.globalData.messages = [];
+
+    this.setData({ isGroupSelectMode: false, groupSelected: {} });
     wx.navigateTo({ url: '/pages/chat/chat' });
   },
 

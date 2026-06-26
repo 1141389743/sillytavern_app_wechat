@@ -124,6 +124,44 @@
   transform: scale(0.98);
 }
 
+/* ── 群聊选择模式 ── */
+.char-card-select {
+  border: 3rpx solid transparent;
+}
+
+.char-card-selected {
+  border-color: #6C5CE7;
+  background: rgba(108, 92, 231, 0.06);
+}
+
+.select-check {
+  margin-right: 16rpx;
+  flex-shrink: 0;
+}
+
+.check-icon {
+  font-size: 36rpx;
+}
+
+.group-select-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.group-select-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.group-select-count {
+  font-size: 24rpx;
+  color: #6C5CE7;
+  font-weight: 600;
+}
+
 /* ── 头像 ── */
 .char-avatar-wrap {
   width: 112rpx;
@@ -262,6 +300,27 @@
   background: linear-gradient(135deg, #6C5CE7 0%, #a29bfe 100%);
   color: #fff;
   box-shadow: 0 6rpx 20rpx rgba(108,92,231,0.25);
+}
+
+.btn-group {
+  background: #f0edff;
+  color: #6C5CE7;
+}
+
+.btn-cancel-group {
+  background: #f5f5f7;
+  color: #666;
+}
+
+.btn-start-group {
+  background: linear-gradient(135deg, #6C5CE7 0%, #a29bfe 100%);
+  color: #fff;
+  box-shadow: 0 6rpx 20rpx rgba(108,92,231,0.25);
+}
+
+.btn-disabled {
+  opacity: 0.4;
+  box-shadow: none;
 }
 
 .btn-icon {

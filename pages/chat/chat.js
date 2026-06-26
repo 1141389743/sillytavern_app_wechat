@@ -7,7 +7,7 @@ const app = getApp();
 const st = require('../../services/sillytavern');
 const directApi = require('../../services/direct_api');
 const { formatTime, generateId, stripPngSuffix } = require('../../utils/util');
-const { markdownToWxml } = require('../../utils/markdown');
+const { markdownToWxml, parseContentBlocks, extractImageUrls } = require('../../utils/markdown');
 const tts = require('../../services/tts');
 
 Page({
@@ -46,11 +46,20 @@ Page({
     isTtsPlaying: false,
     ttsPlayingMsgId: '',
 
+    // @提及面板
+    showMentionPanel: false,
+
     // 下拉刷新
     isRefreshing: false,
 
     // 流式状态
     isStreaming: false,
+
+    // 群聊
+    isGroupChat: false,
+    groupMembers: [],
+    groupRespondIndex: 0, // 当前轮到回复的角色索引（轮流模式）
+    showGroupPanel: false,
 
     // 消息编辑
     editingMessageId: null,
@@ -79,10 +88,59 @@ Page({
     return wxml;
   },
 
+  /** 解析消息为内容块（文字+图片混合） */
+  _parseBlocks(content, role) {
+    if (!content) return [];
+    // 用户消息不解析图片
+    if (role === 'user') return [{ type: 'text', content }];
+    return parseContentBlocks(content);
+  },
+
+  /** 为消息添加渲染数据 (_mdWxml + _blocks) */
+  _enrichMessage(msg) {
+    if (msg.role === 'assistant' && msg.content) {
+      const blocks = this._parseBlocks(msg.content, msg.role);
+      msg._blocks = blocks.map(b => {
+        if (b.type === 'text') {
+          return { type: 'text', _wxml: this._renderMessage(b.content, 'assistant') || b.content };
+        }
+        return b;
+      });
+      msg._mdWxml = this._renderMessage(msg.content, msg.role);
+
+      // 群聊模式：设置消息对应的头像
+      if (this.data.isGroupChat && msg.name) {
+        const member = this.data.groupMembers.find(m => m.name === msg.name);
+        if (member) {
+          msg._avatarPath = member._avatarPath || '';
+          msg._avatarLetter = member._avatarLetter || msg.name[0];
+        } else {
+          msg._avatarLetter = msg.name[0];
+        }
+      }
+    }
+    return msg;
+  },
+
+  /** 预览图片 */
+  onPreviewImage(e) {
+    const url = e.currentTarget.dataset.url;
+    if (!url) return;
+    // 收集当前消息中所有图片 URL 作为预览列表
+    const msgId = e.currentTarget.dataset.msgId;
+    const msg = this.data.messages.find(m => m.id === msgId);
+    const urls = msg ? extractImageUrls(msg.content) : [url];
+    wx.previewImage({ current: url, urls: urls.length > 0 ? urls : [url] });
+  },
+
   onLoad() {
     const g = app.globalData;
     const char = g.currentCharacter;
     if (!char) return;
+
+    // 群聊模式初始化
+    const isGroup = !!g.isGroupChat && Array.isArray(g.groupMembers) && g.groupMembers.length > 1;
+    const groupMembers = isGroup ? g.groupMembers : [];
 
     this.setData({
       characterName: char.name || '未知角色',
@@ -92,7 +150,15 @@ Page({
       characterScenario: char.scenario || '',
       greeting: char.greeting || char.first_mes || '',
       useDirectApi: g.directApi.enabled,
-      directApiTypeName: g.directApi.enabled ? this._getTypeName(g.directApi.type) : ''
+      directApiTypeName: g.directApi.enabled ? this._getTypeName(g.directApi.type) : '',
+      isGroupChat: isGroup,
+      groupMembers: groupMembers.map(m => ({
+        name: m.name,
+        avatar: m.avatar,
+        personality: m.personality || '',
+        _avatarPath: '',
+        _avatarLetter: (m.name || '?')[0]
+      }))
     });
 
     // 异步下载头像到本地
@@ -100,6 +166,17 @@ Page({
       st.downloadAvatar(char.avatar).then(localPath => {
         this.setData({ characterAvatarUrl: localPath });
       }).catch(() => {});
+    }
+
+    // 群聊模式：下载所有成员头像
+    if (isGroup) {
+      groupMembers.forEach((m, i) => {
+        if (m.avatar) {
+          st.downloadAvatar(m.avatar).then(localPath => {
+            this.setData({ [`groupMembers[${i}]._avatarPath`]: localPath });
+          }).catch(() => {});
+        }
+      });
     }
 
     // 加载聊天历史
@@ -114,6 +191,9 @@ Page({
     }
     // 返回时清除当前角色
     app.globalData.currentCharacter = null;
+    // 清除群聊状态
+    app.globalData.isGroupChat = false;
+    app.globalData.groupMembers = null;
   },
 
   onHide() {
@@ -145,6 +225,9 @@ Page({
       wx.showToast({ title: '网络已断开，请检查连接', icon: 'none' });
       return;
     }
+
+    // 触觉反馈
+    wx.vibrateShort({ type: 'medium' });
 
     const g = app.globalData;
     const character = g.currentCharacter;
@@ -180,6 +263,27 @@ Page({
     await this._generateReply(messages, character);
   },
 
+  /** 确定群聊中哪个角色回复 */
+  _getGroupResponder(userText) {
+    const members = this.data.groupMembers;
+    if (!members || members.length === 0) return null;
+
+    // 检查是否有 @提及
+    const mentionMatch = userText.match(/@(\S+)/);
+    if (mentionMatch) {
+      const mentionName = mentionMatch[1];
+      const idx = members.findIndex(m =>
+        m.name === mentionName || m.name.startsWith(mentionName)
+      );
+      if (idx >= 0) return members[idx];
+    }
+
+    // 轮流模式
+    const idx = this.data.groupRespondIndex % members.length;
+    this.setData({ groupRespondIndex: idx + 1 });
+    return members[idx];
+  },
+
   /**
    * 核心生成逻辑（流式），被 onSend 和 onRegenerate 共用
    */
@@ -188,13 +292,19 @@ Page({
     const history = messages.slice(0, -1);
     const lastUserMsg = messages[messages.length - 1];
 
+    // 群聊模式：确定回复角色
+    let responder = character;
+    if (this.data.isGroupChat) {
+      responder = this._getGroupResponder(lastUserMsg.content) || character;
+    }
+
     // 先添加一个空的 assistant 消息作为流式占位
     const streamingMsgId = generateId();
     const streamingMsg = {
       id: streamingMsgId,
       role: 'assistant',
       content: '',
-      name: character.name,
+      name: responder.name,
       timestamp: Date.now(),
       _time: formatTime(new Date()),
       _showAvatar: true,
@@ -239,7 +349,7 @@ Page({
 
       if (this.data.useDirectApi && g.directApi.enabled) {
         // 直连模式流式
-        const systemPrompt = directApi.buildCharacterPrompt(character);
+        const systemPrompt = directApi.buildCharacterPrompt(responder);
         reply = await directApi.sendMessageStream(
           g.directApi,
           history,
@@ -252,7 +362,7 @@ Page({
         reply = await st.sendMessageStream(
           history,
           lastUserMsg.content,
-          character,
+          responder,
           onChunk
         );
       } else {
@@ -270,10 +380,12 @@ Page({
       const finalIdx = this.data.messages.findIndex(m => m.id === streamingMsgId);
       if (finalIdx >= 0) {
         const finalContent = reply || this._streamText || '（无回复）';
+        const enriched = this._enrichMessage({ content: finalContent, role: 'assistant' });
         this.setData({
           [`messages[${finalIdx}].content`]: finalContent,
           [`messages[${finalIdx}]._isStreaming`]: false,
-          [`messages[${finalIdx}]._mdWxml`]: this._renderMessage(finalContent, 'assistant')
+          [`messages[${finalIdx}]._mdWxml`]: enriched._mdWxml,
+          [`messages[${finalIdx}]._blocks`]: enriched._blocks
         });
       }
 
@@ -325,6 +437,7 @@ Page({
   // === 停止生成 ===
 
   onStopStreaming() {
+    wx.vibrateShort({ type: 'medium' });
     if (this._streamAbort) {
       this._streamAbort();
     }
@@ -335,6 +448,7 @@ Page({
 
   async onRegenerate() {
     if (this.data.isSending) return;
+    wx.vibrateShort({ type: 'light' });
 
     const g = app.globalData;
     const character = g.currentCharacter;
@@ -398,6 +512,7 @@ Page({
   async onSaveEdit() {
     const { editingMessageId, editingText } = this.data;
     if (!editingMessageId) return;
+    wx.vibrateShort({ type: 'light' });
 
     const newText = editingText.trim();
     if (!newText) {
@@ -449,6 +564,7 @@ Page({
 
   onLongPressMessage(e) {
     const { id, content, role } = e.currentTarget.dataset;
+    wx.vibrateShort({ type: 'heavy' });
     this.setData({
       showMsgMenu: true,
       menuMessageId: id,
@@ -464,6 +580,7 @@ Page({
   onMenuEdit() {
     const { menuMessageId, menuMessageContent } = this.data;
     this.hideMsgMenu();
+    wx.vibrateShort({ type: 'light' });
     this.setData({
       editingMessageId: menuMessageId,
       editingText: menuMessageContent
@@ -473,6 +590,7 @@ Page({
   onMenuCopy() {
     const { menuMessageContent } = this.data;
     this.hideMsgMenu();
+    wx.vibrateShort({ type: 'light' });
     wx.setClipboardData({
       data: menuMessageContent,
       success: () => {
@@ -484,6 +602,7 @@ Page({
   onMenuDelete() {
     const { menuMessageId } = this.data;
     this.hideMsgMenu();
+    wx.vibrateShort({ type: 'medium' });
     if (!menuMessageId) return;
 
     const idx = this.data.messages.findIndex(m => m.id === menuMessageId);
@@ -503,6 +622,7 @@ Page({
     const { menuMessageId, menuMessageContent } = this.data;
     this.hideMsgMenu();
     if (!menuMessageContent) return;
+    wx.vibrateShort({ type: 'light' });
 
     // 如果正在播放同一条，停止
     if (this.data.isTtsPlaying && this.data.ttsPlayingMsgId === menuMessageId) {
@@ -576,16 +696,15 @@ Page({
         await this._loadChatSession(0);
       } else if (this.data.greeting) {
         // 无历史记录但有开场白：将开场白作为第一条消息
-        const greetingMsg = {
+        const greetingMsg = this._enrichMessage({
           id: generateId(),
           role: 'assistant',
           content: this.data.greeting,
           name: character.name,
           timestamp: Date.now(),
           _time: formatTime(new Date()),
-          _showAvatar: true,
-          _mdWxml: this._renderMessage(this.data.greeting, 'assistant')
-        };
+          _showAvatar: true
+        });
         this.setData({ messages: [greetingMsg] });
       }
     } catch (e) {
@@ -600,24 +719,25 @@ Page({
     const saved = wx.getStorageSync(key);
 
     if (saved && Array.isArray(saved) && saved.length > 0) {
-      const messages = saved.map(m => ({
-        ...m,
-        _time: formatTime(new Date(m.timestamp)),
-        _mdWxml: this._renderMessage(m.content, m.role)
-      }));
+      const messages = saved.map(m => {
+        const enriched = this._enrichMessage({
+          ...m,
+          _time: formatTime(new Date(m.timestamp))
+        });
+        return enriched;
+      });
       this.setData({ messages });
       this._scrollToBottom();
     } else if (this.data.greeting) {
-      const greetingMsg = {
+      const greetingMsg = this._enrichMessage({
         id: generateId(),
         role: 'assistant',
         content: this.data.greeting,
         name: character.name,
         timestamp: Date.now(),
         _time: formatTime(new Date()),
-        _showAvatar: true,
-        _mdWxml: this._renderMessage(this.data.greeting, 'assistant')
-      };
+        _showAvatar: true
+      });
       this.setData({ messages: [greetingMsg] });
     }
   },
@@ -636,7 +756,7 @@ Page({
         id: m.id,
         role: m.role,
         content: m.content,
-        name: m.name,
+        name: m.name || '',
         timestamp: m.timestamp
       }));
 
@@ -669,15 +789,14 @@ Page({
     const avatarUrl = stripPngSuffix(character.avatar);
     const rawMessages = await st.getChatMessages(avatarUrl, fileName);
 
-    const messages = rawMessages.map(m => ({
+    const messages = rawMessages.map(m => this._enrichMessage({
       id: generateId(),
       role: m.role,
       content: m.content,
       name: m.name || '',
       timestamp: m.timestamp,
       _time: formatTime(new Date(m.timestamp)),
-      _showAvatar: m.role === 'assistant',
-      _mdWxml: this._renderMessage(m.content, m.role)
+      _showAvatar: m.role === 'assistant'
     }));
 
     const sessionLabel = chats.length > 1
@@ -771,6 +890,10 @@ Page({
 
   hideCharInfo() {
     this.setData({ showCharInfo: false });
+  },
+
+  onToggleGroupPanel() {
+    this.setData({ showGroupPanel: !this.data.showGroupPanel });
   },
 
   // === 工具 ===
