@@ -248,7 +248,7 @@ async function exportCharacterAsPng(character) {
 
   if (pngData) {
     // 将 JSON 嵌入 PNG 的 tEXt chunk
-    const embedded = _embedJsonInPng(pngData, 'chara', btoa(unescape(encodeURIComponent(jsonStr))));
+    const embedded = _embedJsonInPng(pngData, 'chara', _utf8ToBase64(jsonStr));
     const tmpPath = `${wx.env.USER_DATA_PATH}/export_${Date.now()}.png`;
     const fs = wx.getFileSystemManager();
     return new Promise((resolve, reject) => {
@@ -368,6 +368,38 @@ function _crc32(data) {
     }
   }
   return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+/**
+ * UTF-8 字符串 → Base64
+ * 替代 btoa(unescape(encodeURIComponent(str))) ，兼容微信小程序
+ */
+function _utf8ToBase64(str) {
+  const bytes = [];
+  for (let i = 0; i < str.length; i++) {
+    let c = str.charCodeAt(i);
+    if (c < 0x80) {
+      bytes.push(c);
+    } else if (c < 0x800) {
+      bytes.push(0xC0 | (c >> 6), 0x80 | (c & 0x3F));
+    } else if (c >= 0xD800 && c <= 0xDBFF) {
+      // surrogate pair
+      c = ((c - 0xD800) << 10) + (str.charCodeAt(++i) - 0xDC00) + 0x10000;
+      bytes.push(0xF0 | (c >> 18), 0x80 | ((c >> 12) & 0x3F), 0x80 | ((c >> 6) & 0x3F), 0x80 | (c & 0x3F));
+    } else {
+      bytes.push(0xE0 | (c >> 12), 0x80 | ((c >> 6) & 0x3F), 0x80 | (c & 0x3F));
+    }
+  }
+  const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  let result = '';
+  for (let i = 0; i < bytes.length; i += 3) {
+    const a = bytes[i], b = bytes[i + 1] || 0, c = bytes[i + 2] || 0;
+    result += CHARS[a >> 2];
+    result += CHARS[((a & 3) << 4) | (b >> 4)];
+    result += i + 1 < bytes.length ? CHARS[((b & 15) << 2) | (c >> 6)] : '=';
+    result += i + 2 < bytes.length ? CHARS[c & 63] : '=';
+  }
+  return result;
 }
 
 /**

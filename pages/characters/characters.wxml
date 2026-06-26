@@ -17,7 +17,7 @@
     </view>
     <view class="group-select-info" wx:if="{{isGroupSelectMode}}">
       <text class="group-select-title">👥 选择群聊角色</text>
-      <text class="group-select-count">已选 {{Object.keys(groupSelected).length}} 个</text>
+      <text class="group-select-count">已选 {{groupSelectedCount}} 个</text>
     </view>
     <view class="status-btn" bindtap="onShowSettings" wx:if="{{!isGroupSelectMode}}">
       <text class="status-dot {{isConnected ? 'dot-green' : 'dot-red'}}"></text>
@@ -106,9 +106,9 @@
     <button class="btn-action btn-cancel-group" bindtap="onToggleGroupSelect">
       <text>取消</text>
     </button>
-    <button class="btn-action btn-start-group {{Object.keys(groupSelected).length >= 2 ? '' : 'btn-disabled'}}" bindtap="onStartGroupChat">
+    <button class="btn-action btn-start-group {{groupSelectedCount >= 2 ? '' : 'btn-disabled'}}" bindtap="onStartGroupChat">
       <text class="btn-icon">💬</text>
-      <text>开始群聊 ({{Object.keys(groupSelected).length}})</text>
+      <text>开始群聊 ({{groupSelectedCount}})</text>
     </button>
   </view>
 

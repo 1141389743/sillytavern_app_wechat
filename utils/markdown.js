@@ -163,7 +163,7 @@ function markdownToWxml(text) {
       case 'code-block':
         wxml += `<pre style="background:rgba(0,0,0,0.06);padding:16rpx;border-radius:12rpx;font-family:monospace;font-size:24rpx;line-height:1.5;overflow-x:auto;margin:12rpx 0;white-space:pre-wrap;word-break:break-all;"><code>${_escapeHtml(block.text)}</code></pre>`;
         break;
-      case 'quote':
+      case 'quote': {
         const quoteNodes = inlineToRichNodes(block.text);
         let quoteInner = '';
         for (const n of quoteNodes) {
@@ -175,10 +175,11 @@ function markdownToWxml(text) {
         }
         wxml += `<div style="border-left:6rpx solid rgba(108,92,231,0.3);padding-left:16rpx;color:rgba(0,0,0,0.5);margin:8rpx 0;">${quoteInner}</div>`;
         break;
+      }
       case 'image':
         wxml += `<img src="${_escapeHtml(block.url)}" alt="${_escapeHtml(block.alt)}" style="max-width:100%;border-radius:12rpx;margin:8rpx 0;display:block;"/>`;
         break;
-      case 'inline':
+      case 'inline': {
         const nodes = inlineToRichNodes(block.text);
         for (const n of nodes) {
           if (n.style) {
@@ -189,6 +190,7 @@ function markdownToWxml(text) {
         }
         wxml += '<br/>';
         break;
+      }
     }
   }
 

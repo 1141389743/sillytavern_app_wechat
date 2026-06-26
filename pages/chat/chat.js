@@ -550,11 +550,18 @@ Page({
       }
     } else if (msg.role === 'assistant') {
       // 编辑助手消息：只更新内容，不触发重新生成
+      const enriched = this._enrichMessage({ content: newText, role: 'assistant' });
       this.setData({
         [`messages[${idx}].content`]: newText,
+        [`messages[${idx}]._mdWxml`]: enriched._mdWxml,
+        [`messages[${idx}]._blocks`]: enriched._blocks,
         editingMessageId: null,
         editingText: ''
       });
+      // 直连模式：编辑后保存到本地
+      if (this.data.useDirectApi) {
+        this._saveLocalChat(this.data.messages);
+      }
     }
   },
 

@@ -29,7 +29,8 @@ Page({
 
     // 群聊选择模式
     isGroupSelectMode: false,
-    groupSelected: {} // { name: true } 记录选中状态
+    groupSelected: {}, // { name: true } 记录选中状态
+    groupSelectedCount: 0
   },
 
   // 本地头像缓存 { avatarUrl: localPath }
@@ -243,7 +244,10 @@ Page({
       wx.vibrateShort({ type: 'light' });
       const key = `groupSelected.${character.name}`;
       const current = this.data.groupSelected[character.name];
-      this.setData({ [key]: !current });
+      const newVal = !current;
+      const updated = { ...this.data.groupSelected };
+      if (newVal) { updated[character.name] = true; } else { delete updated[character.name]; }
+      this.setData({ [key]: newVal, groupSelectedCount: Object.keys(updated).length });
       return;
     }
 
@@ -258,11 +262,9 @@ Page({
   onToggleGroupSelect() {
     wx.vibrateShort({ type: 'medium' });
     if (this.data.isGroupSelectMode) {
-      // 退出选择模式
-      this.setData({ isGroupSelectMode: false, groupSelected: {} });
+      this.setData({ isGroupSelectMode: false, groupSelected: {}, groupSelectedCount: 0 });
     } else {
-      // 进入选择模式
-      this.setData({ isGroupSelectMode: true, groupSelected: {} });
+      this.setData({ isGroupSelectMode: true, groupSelected: {}, groupSelectedCount: 0 });
     }
   },
 
@@ -283,7 +285,7 @@ Page({
     app.globalData.isGroupChat = true;
     app.globalData.messages = [];
 
-    this.setData({ isGroupSelectMode: false, groupSelected: {} });
+    this.setData({ isGroupSelectMode: false, groupSelected: {}, groupSelectedCount: 0 });
     wx.navigateTo({ url: '/pages/chat/chat' });
   },
 

@@ -182,20 +182,9 @@ function _synthesizeOpenAi(text, cfg) {
       response_format: 'mp3'
     };
 
-    wx.downloadFile({
-      url,
-      header: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      // downloadFile 不支持 POST，需要用 wx.request 的 arraybuffer 方式
-      success: () => {},
-      fail: () => {}
-    });
-
-    // wx.downloadFile 只支持 GET，TTS API 是 POST
-    // 改用 wx.request + responseType: arraybuffer
-    const reqTask = wx.request({
+    // wx.downloadFile 只支持 GET，TTS API 需要 POST
+    // 使用 wx.request + responseType: arraybuffer
+    wx.request({
       url,
       method: 'POST',
       header: {
@@ -468,17 +457,38 @@ function _cleanForTts(text) {
     .trim();
 }
 
-/** 将 ArrayBuffer 写入临时音频文件 */
+/**
+ * 将音频数据写入临时文件
+ * wx.request responseType:'arraybuffer' 返回的数据可能是
+ * ArrayBuffer、Uint8Array 或 Buffer，需要统一转为纯 ArrayBuffer
+ */
 function _writeAudioFile(buffer, ext) {
   return new Promise((resolve, reject) => {
+    let data = buffer;
+    if (data && !(data instanceof ArrayBuffer)) {
+      if (data.buffer instanceof ArrayBuffer) {
+        if (data.byteOffset === 0 && data.byteLength === data.buffer.byteLength) {
+          data = data.buffer;
+        } else {
+          data = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+        }
+      } else {
+        const arr = new Uint8Array(data.length || data.byteLength || 0);
+        for (let i = 0; i < arr.length; i++) arr[i] = data[i];
+        data = arr.buffer;
+      }
+    }
+    if (!data || data.byteLength < 100) {
+      return reject(new Error('音频数据为空或过小 (' + (data ? data.byteLength : 0) + ' bytes)'));
+    }
     const fs = wx.getFileSystemManager();
     const tmpPath = `${wx.env.USER_DATA_PATH}/tts_${Date.now()}.${ext}`;
     fs.writeFile({
       filePath: tmpPath,
-      data: buffer,
+      data: data,
       encoding: 'binary',
       success() { resolve(tmpPath); },
-      fail(err) { reject(new Error('写入音频文件失败')); }
+      fail(err) { reject(new Error('写入音频文件失败: ' + (err.errMsg || ''))); }
     });
   });
 }
